@@ -1,0 +1,33 @@
+{
+  "name": "@betterforgeprofits/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build && bun scripts/normalize-routes-manifest.mjs",
+    "start": "bun scripts/normalize-routes-manifest.mjs && next start",
+    "lint": "ultracite check",
+    "extract:recipes": "bun lib/forge/extract-recipes.ts",
+    "check": "ultracite check",
+    "fix": "ultracite fix"
+  },
+  "dependencies": {
+    "@betterforgeprofits/db": "workspace:*",
+    "@betterforgeprofits/forge-core": "workspace:*",
+    "cheerio": "^1.0.0",
+    "next": "^15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.7",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "tsx": "^4.19.3",
+    "typescript": "^5",
+    "ultracite": "7.3.2"
+  }
+}

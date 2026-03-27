@@ -1,0 +1,13 @@
+{
+  "name": "@betterforgeprofits/forge-core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./analysis": "./src/analysis.ts",
+    "./hotm": "./src/hotm.ts",
+    "./presentation": "./src/presentation.ts",
+    "./recipes": "./src/recipes.ts",
+    "./tabs": "./src/tabs.ts",
+    "./types": "./src/types.ts"
+  }
+}

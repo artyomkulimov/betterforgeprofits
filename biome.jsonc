@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": [
+      "!!guide",
+      "!!guide",
+      "!!scratchpad",
+      "!!scratchpad",
+      "!!apps/web/lib/forge/extract-recipes.ts",
+      "!!packages/forge-core/data/forge-recipes.json"
+    ]
+  },
+  "extends": ["ultracite/biome/core", "ultracite/biome/next"]
+}

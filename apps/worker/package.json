@@ -1,0 +1,14 @@
+{
+  "name": "@betterforgeprofits/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-prices": "bun src/cli.ts sync-prices",
+    "backfill-aliases": "bun src/cli.ts backfill-aliases",
+    "cleanup": "bun src/cli.ts cleanup"
+  },
+  "dependencies": {
+    "@betterforgeprofits/db": "workspace:*",
+    "@betterforgeprofits/forge-core": "workspace:*"
+  }
+}

@@ -1,0 +1,14 @@
+.git
+.github
+.next
+guide
+node_modules
+scratchpad
+apps/web/.next
+apps/web/node_modules
+apps/worker/node_modules
+packages/*/node_modules
+apps/web/.env.local
+.env
+.env.local
+.DS_Store

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run BetterForgeProfits Hypixel price sync every 10 minutes
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=10m
+Persistent=true
+Unit=betterforgeprofits-sync.service
+
+[Install]
+WantedBy=timers.target

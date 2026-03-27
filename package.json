@@ -1,0 +1,23 @@
+{
+  "name": "betterforgeprofits",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --cwd apps/web run dev",
+    "lint": "ultracite check",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "worker:sync-prices": "bun --cwd apps/worker run sync-prices",
+    "worker:backfill-aliases": "bun --cwd apps/worker run backfill-aliases",
+    "worker:cleanup": "bun --cwd apps/worker run cleanup"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.7",
+    "@types/node": "^22",
+    "typescript": "^5",
+    "ultracite": "7.3.2"
+  }
+}

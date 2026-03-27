@@ -1,0 +1,13 @@
+.next
+apps/web/.next
+guide/.next
+node_modules
+apps/web/node_modules
+apps/worker/node_modules
+packages/*/node_modules
+scratchpad/
+guide/
+.env
+.env.local
+apps/web/.env.local
+.DS_Store
