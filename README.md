@@ -14,6 +14,7 @@ Monorepo for the BetterForgeProfits web app, Postgres-backed pricing cache, and 
 - `bun install`
 - `bun run dev`
 - `bun run lint`
+- `bun run worker:migrate`
 - `bun run worker:sync-prices`
 - `bun run worker:backfill-aliases`
 - `bun run worker:cleanup`
@@ -72,6 +73,12 @@ DATABASE_URL=your-supabase-postgres-connection-string
 
 ```bash
 docker run --rm --env-file /etc/betterforgeprofits.env betterforgeprofits-worker:latest sync-prices
+```
+
+If the schema has not been created yet, run the migration first:
+
+```bash
+docker run --rm --env-file /etc/betterforgeprofits.env betterforgeprofits-worker:latest migrate
 ```
 
 ### 6. Install the timer

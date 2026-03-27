@@ -10,6 +10,7 @@
     "lint": "ultracite check",
     "check": "ultracite check",
     "fix": "ultracite fix",
+    "worker:migrate": "bun --cwd apps/worker run migrate",
     "worker:sync-prices": "bun --cwd apps/worker run sync-prices",
     "worker:backfill-aliases": "bun --cwd apps/worker run backfill-aliases",
     "worker:cleanup": "bun --cwd apps/worker run cleanup"

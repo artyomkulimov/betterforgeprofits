@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "migrate": "bun src/cli.ts migrate",
     "sync-prices": "bun src/cli.ts sync-prices",
     "backfill-aliases": "bun src/cli.ts backfill-aliases",
     "cleanup": "bun src/cli.ts cleanup"
