@@ -14,7 +14,11 @@ export interface ForgeBatchMetrics {
   totalOutputValue: number | null;
   totalProfit: number | null;
   totalProfitPerHour: number | null;
+  totalRecursiveDurationMs: number;
 }
+
+export const SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD = 4;
+export const LOW_FORGE_TIME_THRESHOLD_MS = 30 * 60_000;
 
 function clampInteger(
   value: number,
@@ -42,6 +46,8 @@ export function getForgeBatchMetrics(
   const totalOutput = craftsNeeded * row.outputCount;
   const totalDurationMs =
     Math.ceil(craftsNeeded / slotCount) * row.effectiveDurationMs;
+  const totalRecursiveDurationMs =
+    craftsNeeded * row.recursiveEffectiveDurationMs;
   const totalMaterialCost =
     row.baseMaterialCost === null ? null : row.baseMaterialCost * craftsNeeded;
   const totalOutputValue =
@@ -67,6 +73,7 @@ export function getForgeBatchMetrics(
     craftsNeeded,
     totalOutput,
     totalDurationMs,
+    totalRecursiveDurationMs,
     totalMaterialCost,
     totalOutputValue,
     totalProfit,
@@ -104,4 +111,33 @@ export function sortForgeRows(
   });
 
   return sorted;
+}
+
+export function isSuspiciousForgeRow(
+  row: ForgeAnalysisRow,
+  settings: ForgeBatchSettings
+): boolean {
+  const metrics = getForgeBatchMetrics(row, settings);
+
+  if (
+    metrics.totalMaterialCost === null ||
+    metrics.totalProfit === null ||
+    metrics.totalMaterialCost <= 0 ||
+    metrics.totalProfit <= 0
+  ) {
+    return false;
+  }
+
+  return (
+    metrics.totalProfit / metrics.totalMaterialCost >
+    SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD
+  );
+}
+
+export function isLowForgeTimeRow(
+  row: ForgeAnalysisRow,
+  settings: ForgeBatchSettings
+): boolean {
+  const metrics = getForgeBatchMetrics(row, settings);
+  return metrics.totalRecursiveDurationMs < LOW_FORGE_TIME_THRESHOLD_MS;
 }

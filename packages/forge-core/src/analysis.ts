@@ -7,6 +7,7 @@ import {
 import { getForgeRecipes, normalizeItemName } from "./recipes";
 import type {
   AppliedPriceDetail,
+  CraftTreeNode,
   ExpandedMaterial,
   ForgeAnalysisResponse,
   ForgeAnalysisRow,
@@ -48,6 +49,7 @@ interface ExpandedResult {
   coverage: PriceCoverage;
   hasForgeDependencies: boolean;
   materials: ExpandedMaterial[];
+  treeNode: CraftTreeNode;
   usesAhPricing: boolean;
 }
 
@@ -271,6 +273,124 @@ function toAppliedPriceDetail(material: ExpandedMaterial): AppliedPriceDetail {
   };
 }
 
+function sumKnownSubtotals(nodes: CraftTreeNode[]): number | null {
+  if (nodes.some((node) => node.subtotalCost === null)) {
+    return null;
+  }
+
+  return nodes.reduce((sum, node) => sum + (node.subtotalCost ?? 0), 0);
+}
+
+function sumRecursiveForgeDurations(nodes: CraftTreeNode[]): {
+  baseDurationMs: number;
+  effectiveDurationMs: number;
+} {
+  return nodes.reduce(
+    (totals, node) => {
+      const childTotals = sumRecursiveForgeDurations(node.children);
+      const nodeBaseDuration =
+        (node.forgeDurationMs ?? 0) * Math.max(node.quantity, 0);
+      const nodeEffectiveDuration =
+        (node.effectiveForgeDurationMs ?? 0) * Math.max(node.quantity, 0);
+
+      return {
+        baseDurationMs:
+          totals.baseDurationMs + nodeBaseDuration + childTotals.baseDurationMs,
+        effectiveDurationMs:
+          totals.effectiveDurationMs +
+          nodeEffectiveDuration +
+          childTotals.effectiveDurationMs,
+      };
+    },
+    { baseDurationMs: 0, effectiveDurationMs: 0 }
+  );
+}
+
+function toCraftNodeDurations(
+  recipe: ForgeRecipe | null,
+  quickForgeLevel: number
+) {
+  return {
+    forgeDurationMs: recipe?.durationMs ?? null,
+    effectiveForgeDurationMs:
+      recipe === null
+        ? null
+        : effectiveForgeDuration(recipe.durationMs, quickForgeLevel),
+  };
+}
+
+function buildCraftTreeNode({
+  children,
+  craftableRecipe,
+  ingredient,
+  isCraftable,
+  path,
+  quantity,
+  quickForgeLevel,
+}: {
+  children: CraftTreeNode[];
+  craftableRecipe: ForgeRecipe | null;
+  ingredient: RecipeIngredient;
+  isCraftable: boolean;
+  path: string;
+  quantity: number;
+  quickForgeLevel: number;
+}): CraftTreeNode {
+  return {
+    nodeId: path,
+    name: ingredient.name,
+    kind: "item",
+    quantity,
+    itemId: ingredient.itemId,
+    recipeId: craftableRecipe?.id ?? null,
+    ...toCraftNodeDurations(craftableRecipe, quickForgeLevel),
+    isCraftable,
+    subtotalCost: sumKnownSubtotals(children),
+    leafPriceDetail: null,
+    children,
+  };
+}
+
+async function expandIngredientChildren(
+  ingredient: RecipeIngredient,
+  quantity: number,
+  path: string,
+  recipeNameIndex: Map<string, ForgeRecipe>,
+  allowAuction: boolean,
+  materialPricing: MaterialPricingMode,
+  priceRepository: PriceRepository,
+  quickForgeLevel: number
+) {
+  let usesAhPricing = false;
+  let hasForgeDependencies = false;
+  const materials: ExpandedMaterial[] = [];
+  const childNodes: CraftTreeNode[] = [];
+
+  for (const [index, child] of (ingredient.children ?? []).entries()) {
+    const expanded = await expandIngredientTree(
+      child,
+      quantity,
+      `${path}.${index}`,
+      recipeNameIndex,
+      allowAuction,
+      materialPricing,
+      priceRepository,
+      quickForgeLevel
+    );
+    usesAhPricing ||= expanded.usesAhPricing;
+    hasForgeDependencies ||= expanded.hasForgeDependencies;
+    materials.push(...expanded.materials);
+    childNodes.push(expanded.treeNode);
+  }
+
+  return {
+    materials,
+    childNodes,
+    usesAhPricing,
+    hasForgeDependencies,
+  };
+}
+
 async function quoteLeaf(
   name: string,
   allowAuction: boolean,
@@ -316,15 +436,17 @@ async function quoteOutput(
 async function expandIngredientTree(
   ingredient: RecipeIngredient,
   quantityMultiplier: number,
+  path: string,
   recipeNameIndex: Map<string, ForgeRecipe>,
   allowAuction: boolean,
   materialPricing: MaterialPricingMode,
-  priceRepository: PriceRepository
+  priceRepository: PriceRepository,
+  quickForgeLevel: number
 ): Promise<ExpandedResult> {
   const quantity = ingredient.quantity * quantityMultiplier;
-  const isForgeDependency = recipeNameIndex.has(
-    normalizeItemName(ingredient.name)
-  );
+  const craftableRecipe =
+    recipeNameIndex.get(normalizeItemName(ingredient.name)) ?? null;
+  const isForgeDependency = craftableRecipe !== null;
 
   if (ingredient.kind === "coins") {
     return {
@@ -338,6 +460,25 @@ async function expandIngredientTree(
           totalCost: quantity,
         },
       ],
+      treeNode: {
+        nodeId: path,
+        name: ingredient.name,
+        kind: "coins",
+        quantity,
+        itemId: "COINS",
+        recipeId: null,
+        forgeDurationMs: null,
+        effectiveForgeDurationMs: null,
+        isCraftable: false,
+        subtotalCost: quantity,
+        leafPriceDetail: {
+          matchedId: "COINS",
+          source: "coins",
+          totalCost: quantity,
+          unitPrice: 1,
+        },
+        children: [],
+      },
       coverage: "complete",
       usesAhPricing: false,
       hasForgeDependencies: isForgeDependency,
@@ -349,29 +490,34 @@ async function expandIngredientTree(
     ingredient.children &&
     ingredient.children.length > 0
   ) {
-    let usesAhPricing = false;
-    let hasForgeDependencies: boolean = isForgeDependency;
-    const materials: ExpandedMaterial[] = [];
-
-    for (const child of ingredient.children) {
-      const expanded = await expandIngredientTree(
-        child,
-        quantity,
-        recipeNameIndex,
-        allowAuction,
-        materialPricing,
-        priceRepository
-      );
-      usesAhPricing ||= expanded.usesAhPricing;
-      hasForgeDependencies ||= expanded.hasForgeDependencies;
-      materials.push(...expanded.materials);
-    }
+    const expandedChildren = await expandIngredientChildren(
+      ingredient,
+      quantity,
+      path,
+      recipeNameIndex,
+      allowAuction,
+      materialPricing,
+      priceRepository,
+      quickForgeLevel
+    );
 
     return {
-      materials,
-      coverage: deriveCoverage(materials.map((material) => material.unitPrice)),
-      usesAhPricing,
-      hasForgeDependencies,
+      materials: expandedChildren.materials,
+      treeNode: buildCraftTreeNode({
+        children: expandedChildren.childNodes,
+        craftableRecipe,
+        ingredient,
+        isCraftable: true,
+        path,
+        quantity,
+        quickForgeLevel,
+      }),
+      coverage: deriveCoverage(
+        expandedChildren.materials.map((material) => material.unitPrice)
+      ),
+      usesAhPricing: expandedChildren.usesAhPricing,
+      hasForgeDependencies:
+        isForgeDependency || expandedChildren.hasForgeDependencies,
     };
   }
 
@@ -384,29 +530,34 @@ async function expandIngredientTree(
   const source = quote?.source ?? "unknown";
 
   if (!quote && ingredient.children && ingredient.children.length > 0) {
-    let usesAhPricing = false;
-    let hasForgeDependencies: boolean = isForgeDependency;
-    const materials: ExpandedMaterial[] = [];
-
-    for (const child of ingredient.children) {
-      const expanded = await expandIngredientTree(
-        child,
-        quantity,
-        recipeNameIndex,
-        allowAuction,
-        materialPricing,
-        priceRepository
-      );
-      usesAhPricing ||= expanded.usesAhPricing;
-      hasForgeDependencies ||= expanded.hasForgeDependencies;
-      materials.push(...expanded.materials);
-    }
+    const expandedChildren = await expandIngredientChildren(
+      ingredient,
+      quantity,
+      path,
+      recipeNameIndex,
+      allowAuction,
+      materialPricing,
+      priceRepository,
+      quickForgeLevel
+    );
 
     return {
-      materials,
-      coverage: deriveCoverage(materials.map((material) => material.unitPrice)),
-      usesAhPricing,
-      hasForgeDependencies,
+      materials: expandedChildren.materials,
+      treeNode: buildCraftTreeNode({
+        children: expandedChildren.childNodes,
+        craftableRecipe,
+        ingredient,
+        isCraftable: Boolean(ingredient.children.length),
+        path,
+        quantity,
+        quickForgeLevel,
+      }),
+      coverage: deriveCoverage(
+        expandedChildren.materials.map((material) => material.unitPrice)
+      ),
+      usesAhPricing: expandedChildren.usesAhPricing,
+      hasForgeDependencies:
+        isForgeDependency || expandedChildren.hasForgeDependencies,
     };
   }
 
@@ -421,6 +572,25 @@ async function expandIngredientTree(
         totalCost: quote ? quote.unitPrice * quantity : null,
       },
     ],
+    treeNode: {
+      nodeId: path,
+      name: ingredient.name,
+      kind: "item",
+      quantity,
+      itemId: quote?.matchedId ?? ingredient.itemId,
+      recipeId: null,
+      forgeDurationMs: null,
+      effectiveForgeDurationMs: null,
+      isCraftable: false,
+      subtotalCost: quote ? quote.unitPrice * quantity : null,
+      leafPriceDetail: {
+        matchedId: quote?.matchedId ?? ingredient.itemId,
+        source,
+        totalCost: quote ? quote.unitPrice * quantity : null,
+        unitPrice: quote?.unitPrice ?? null,
+      },
+      children: [],
+    },
     coverage: quote ? "complete" : "missing",
     usesAhPricing: quote?.source === "auction",
     hasForgeDependencies: isForgeDependency,
@@ -439,19 +609,23 @@ async function analyzeRecipe(
   let usesAhPricing = false;
   let hasForgeDependencies = false;
   const materials: ExpandedMaterial[] = [];
+  const craftTree: CraftTreeNode[] = [];
 
-  for (const ingredient of recipe.ingredients) {
+  for (const [index, ingredient] of recipe.ingredients.entries()) {
     const expanded = await expandIngredientTree(
       ingredient,
       1,
+      `${recipe.id}.${index}`,
       recipeNameIndex,
       allowAh,
       materialPricing,
-      priceRepository
+      priceRepository,
+      quickForgeLevel
     );
     usesAhPricing ||= expanded.usesAhPricing;
     hasForgeDependencies ||= expanded.hasForgeDependencies;
     materials.push(...expanded.materials);
+    craftTree.push(expanded.treeNode);
   }
 
   const aggregatedMaterials = aggregateMaterials(materials);
@@ -490,6 +664,11 @@ async function analyzeRecipe(
     recipe.durationMs,
     quickForgeLevel
   );
+  const recursiveTreeDurations = sumRecursiveForgeDurations(craftTree);
+  const recursiveBaseDurationMs =
+    recipe.durationMs + recursiveTreeDurations.baseDurationMs;
+  const recursiveEffectiveDurationMs =
+    effectiveDurationMs + recursiveTreeDurations.effectiveDurationMs;
   const profitPerHour =
     profitPerCraft !== null && effectiveDurationMs > 0
       ? profitPerCraft / (effectiveDurationMs / 3_600_000)
@@ -499,6 +678,7 @@ async function analyzeRecipe(
     recipeId: recipe.id,
     name: recipe.name,
     category: recipe.category,
+    craftTree,
     hotmRequired: recipe.requirements.hotmTier,
     materialPricingMode: materialPricing,
     otherRequirements: recipe.requirements.text,
@@ -528,6 +708,8 @@ async function analyzeRecipe(
     priceCoverage: coverage,
     materialPriceDetails: aggregatedMaterials.map(toAppliedPriceDetail),
     rawMaterials: aggregatedMaterials,
+    recursiveBaseDurationMs,
+    recursiveEffectiveDurationMs,
   };
 }
 

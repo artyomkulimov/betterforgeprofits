@@ -105,12 +105,35 @@ export interface AppliedPriceDetail {
   unitPrice: number | null;
 }
 
+export interface CraftTreeLeafPriceDetail {
+  matchedId: string | null;
+  source: PriceQuote["source"] | "unknown";
+  totalCost: number | null;
+  unitPrice: number | null;
+}
+
+export interface CraftTreeNode {
+  children: CraftTreeNode[];
+  effectiveForgeDurationMs: number | null;
+  forgeDurationMs: number | null;
+  isCraftable: boolean;
+  itemId: string | null;
+  kind: "item" | "coins";
+  leafPriceDetail: CraftTreeLeafPriceDetail | null;
+  name: string;
+  nodeId: string;
+  quantity: number;
+  recipeId: string | null;
+  subtotalCost: number | null;
+}
+
 export type PriceCoverage = "complete" | "partial" | "missing";
 
 export interface ForgeAnalysisRow {
   baseDurationMs: number;
   baseMaterialCost: number | null;
   category: ForgeCategory;
+  craftTree: CraftTreeNode[];
   effectiveDurationMs: number;
   hasForgeDependencies: boolean;
   hotmRequired: number | null;
@@ -129,6 +152,8 @@ export interface ForgeAnalysisRow {
   quickForgeReduction: number;
   rawMaterials: ExpandedMaterial[];
   recipeId: string;
+  recursiveBaseDurationMs: number;
+  recursiveEffectiveDurationMs: number;
   usesAhPricing: boolean;
 }
 

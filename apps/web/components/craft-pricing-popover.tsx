@@ -239,10 +239,18 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
               <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
-                Forge Time
+                Top-Level Forge Time
               </p>
               <p className="mt-2 text-[var(--text-soft)]">
                 {formatDuration(row.effectiveDurationMs)}
+              </p>
+            </div>
+            <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
+              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+                Forge Chain Time
+              </p>
+              <p className="mt-2 text-[var(--text-soft)]">
+                {formatDuration(row.recursiveEffectiveDurationMs)}
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3 sm:col-span-2 xl:col-span-1">

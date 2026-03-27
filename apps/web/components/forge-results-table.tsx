@@ -210,7 +210,13 @@ export function ForgeResultsTable({
                   </td>
                   <td className="px-4 py-5">{row.hotmRequired ?? "N/A"}</td>
                   <td className="px-4 py-5">
-                    {formatDuration(metrics.totalDurationMs)}
+                    <div className="space-y-1">
+                      <p>{formatDuration(metrics.totalDurationMs)}</p>
+                      <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                        Forge Chain:{" "}
+                        {formatDuration(metrics.totalRecursiveDurationMs)}
+                      </p>
+                    </div>
                   </td>
                   <td className="px-4 py-5">
                     {formatCoins(metrics.totalMaterialCost)}
@@ -227,7 +233,11 @@ export function ForgeResultsTable({
                 </tr>
                 <tr className="border-[var(--border)]/60 border-t bg-[var(--panel)]/20">
                   <td className="px-4 py-4" colSpan={7}>
-                    <RecipeCostBreakdown materials={metrics.scaledMaterials} />
+                    <RecipeCostBreakdown
+                      craftsNeeded={metrics.craftsNeeded}
+                      materials={metrics.scaledMaterials}
+                      tree={row.craftTree}
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -282,6 +292,10 @@ export function ForgeResultsTable({
                   <p className="mt-1">
                     {formatDuration(metrics.totalDurationMs)}
                   </p>
+                  <p className="mt-1 text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                    Forge Chain:{" "}
+                    {formatDuration(metrics.totalRecursiveDurationMs)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
@@ -315,7 +329,11 @@ export function ForgeResultsTable({
                 </div>
               </div>
               <div className="mt-5">
-                <RecipeCostBreakdown materials={metrics.scaledMaterials} />
+                <RecipeCostBreakdown
+                  craftsNeeded={metrics.craftsNeeded}
+                  materials={metrics.scaledMaterials}
+                  tree={row.craftTree}
+                />
               </div>
             </article>
           );

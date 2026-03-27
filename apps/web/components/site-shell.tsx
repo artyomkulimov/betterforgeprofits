@@ -15,7 +15,7 @@ export function SiteShell({ children }: SiteShellProps) {
       <div className="pointer-events-none absolute top-20 -right-24 h-96 w-96 rounded-full bg-[var(--accent)]/20 blur-[100px]" />
       <div className="pointer-events-none absolute bottom-0 -left-32 h-80 w-80 rounded-full bg-[var(--accent-soft)]/15 blur-[90px]" />
 
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 pt-10">
+      <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 pt-10">
         <div>
           <p className="font-medium text-[var(--accent)] text-sm tracking-[0.35em]">
             FROGE

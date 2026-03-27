@@ -1,6 +1,12 @@
 "use client";
 
-import { sortForgeRows } from "@betterforgeprofits/forge-core/presentation";
+import {
+  isLowForgeTimeRow,
+  isSuspiciousForgeRow,
+  LOW_FORGE_TIME_THRESHOLD_MS,
+  SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD,
+  sortForgeRows,
+} from "@betterforgeprofits/forge-core/presentation";
 import type {
   ForgeAnalysisResponse,
   ForgeProfileSummary,
@@ -144,6 +150,8 @@ export function HeroQueryForm() {
     useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("profit_per_hour");
   const [allowAh, setAllowAh] = useState(false);
+  const [hideLowForgeTimeItems, setHideLowForgeTimeItems] = useState(false);
+  const [hideSuspiciousItems, setHideSuspiciousItems] = useState(false);
   const [materialPricing, setMaterialPricing] =
     useState<MaterialPricingMode>("instant_buy");
   const [outputPricing, setOutputPricing] =
@@ -167,13 +175,37 @@ export function HeroQueryForm() {
     () => Math.min(7, Math.max(1, Number.parseInt(slotCount, 10) || 1)),
     [slotCount]
   );
+  const visibleRows = useMemo(() => {
+    return deferredRows.filter((row) => {
+      const settings = {
+        targetAmount: parsedTargetAmount,
+        slotCount: parsedSlotCount,
+      };
+
+      if (hideSuspiciousItems && isSuspiciousForgeRow(row, settings)) {
+        return false;
+      }
+
+      if (hideLowForgeTimeItems && isLowForgeTimeRow(row, settings)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [
+    deferredRows,
+    hideLowForgeTimeItems,
+    hideSuspiciousItems,
+    parsedSlotCount,
+    parsedTargetAmount,
+  ]);
   const displayRows = useMemo(
     () =>
-      sortForgeRows(deferredRows, sortMode, {
+      sortForgeRows(visibleRows, sortMode, {
         targetAmount: parsedTargetAmount,
         slotCount: parsedSlotCount,
       }),
-    [deferredRows, parsedSlotCount, parsedTargetAmount, sortMode]
+    [parsedSlotCount, parsedTargetAmount, sortMode, visibleRows]
   );
   const recentPlayerOptions = useMemo(
     () =>
@@ -426,7 +458,7 @@ export function HeroQueryForm() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-16 px-6 pt-12 pb-28 lg:pt-16">
+    <main className="mx-auto max-w-7xl space-y-16 px-6 pt-12 pb-28 lg:pt-16">
       <CalculationStatusToast tone={toastTone} />
 
       <div className="max-w-4xl">
@@ -472,7 +504,6 @@ export function HeroQueryForm() {
                   disabled={isBusy}
                   onChange={(value: string) => {
                     setUsername(value);
-                    loadPlayer(value);
                   }}
                   options={recentPlayerOptions}
                   placeholder="Recent players"
@@ -649,10 +680,58 @@ export function HeroQueryForm() {
                   />
                 </label>
               </div>
+
+              <div className="flex items-end">
+                <label className="flex min-h-[46px] w-full items-center justify-between gap-4 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
+                  <span className="min-w-0">
+                    <span className="block">Hide suspicious items</span>
+                    <span className="mt-1 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                      Hide rows above{" "}
+                      {Math.round(SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD * 100)}
+                      % profit vs mats
+                    </span>
+                  </span>
+                  <input
+                    checked={hideSuspiciousItems}
+                    className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                    disabled={isAnalysisLoading}
+                    onChange={(event) =>
+                      setHideSuspiciousItems(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-end">
+                <label className="flex min-h-[46px] w-full items-center justify-between gap-4 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
+                  <span className="min-w-0">
+                    <span className="block">Hide low forge time</span>
+                    <span className="mt-1 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                      Hide rows under{" "}
+                      {Math.round(LOW_FORGE_TIME_THRESHOLD_MS / 60_000)} minutes
+                      of forge chain time
+                    </span>
+                  </span>
+                  <input
+                    checked={hideLowForgeTimeItems}
+                    className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                    disabled={isAnalysisLoading}
+                    onChange={(event) =>
+                      setHideLowForgeTimeItems(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                </label>
+              </div>
             </div>
 
             <ForgeResultsTable
-              emptyMessage="No profitable recipes matched the current pricing and filter settings."
+              emptyMessage={
+                hideSuspiciousItems || hideLowForgeTimeItems
+                  ? "No profitable recipes matched the current pricing and filter settings after applying the active visibility filters."
+                  : "No profitable recipes matched the current pricing and filter settings."
+              }
               isLoading={
                 isAnalysisLoading || (analysis === null && error === null)
               }
