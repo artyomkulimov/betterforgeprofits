@@ -1,6 +1,5 @@
 import { backfillAliases } from "./backfill-aliases";
 import { cleanupSnapshots } from "./cleanup";
-import { runMigrations } from "./migrate";
 import { syncPrices } from "./sync-prices";
 
 const command = process.argv[2];
@@ -8,7 +7,6 @@ const command = process.argv[2];
 const handlers: Record<string, () => Promise<void>> = {
   "backfill-aliases": backfillAliases,
   cleanup: cleanupSnapshots,
-  migrate: runMigrations,
   "sync-prices": syncPrices,
 };
 

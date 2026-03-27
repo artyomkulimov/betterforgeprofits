@@ -20,6 +20,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.7",
     "@types/node": "^22",
+    "drizzle-kit": "^0.31.10",
     "typescript": "^5",
     "ultracite": "7.3.2"
   }

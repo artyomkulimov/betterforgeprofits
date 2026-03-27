@@ -1,14 +1,26 @@
 import { normalizeItemName } from "@betterforgeprofits/forge-core/recipes";
 import type { ForgeRecipe } from "@betterforgeprofits/forge-core/types";
-import { getSql } from "./client";
+import { and, eq, inArray, lt } from "drizzle-orm";
+import { getDb } from "./client";
+import {
+  auctionItemPrices,
+  bazaarItemPrices,
+  itemAliases,
+  priceSnapshots,
+  syncRuns,
+} from "./schema";
 
 export async function startSyncRun(source: string) {
-  const sql = getSql();
-  const rows = await sql<{ id: number }[]>`
-    insert into sync_runs (source, started_at, status)
-    values (${source}, now(), 'running')
-    returning id
-  `;
+  const db = getDb();
+  const rows = await db
+    .insert(syncRuns)
+    .values({
+      source,
+      startedAt: new Date(),
+      status: "running",
+    })
+    .returning({ id: syncRuns.id });
+
   return rows[0].id;
 }
 
@@ -18,15 +30,16 @@ export async function finishSyncRun(
   meta: Record<string, unknown>,
   errorMessage?: string
 ) {
-  const sql = getSql();
-  await sql`
-    update sync_runs
-    set finished_at = now(),
-      status = ${status},
-      error_message = ${errorMessage ?? null},
-      meta_json = ${JSON.stringify(meta)}
-    where id = ${id}
-  `;
+  const db = getDb();
+  await db
+    .update(syncRuns)
+    .set({
+      finishedAt: new Date(),
+      status,
+      errorMessage: errorMessage ?? null,
+      metaJson: meta,
+    })
+    .where(eq(syncRuns.id, id));
 }
 
 export async function createSnapshot(
@@ -34,12 +47,19 @@ export async function createSnapshot(
   fetchedAt: number,
   hypixelLastUpdated: number | null
 ) {
-  const sql = getSql();
-  const rows = await sql<{ id: number }[]>`
-    insert into price_snapshots (source, fetched_at, hypixel_last_updated, is_current)
-    values (${source}, ${new Date(fetchedAt)}, ${hypixelLastUpdated ? new Date(hypixelLastUpdated) : null}, false)
-    returning id
-  `;
+  const db = getDb();
+  const rows = await db
+    .insert(priceSnapshots)
+    .values({
+      source,
+      fetchedAt: new Date(fetchedAt),
+      hypixelLastUpdated: hypixelLastUpdated
+        ? new Date(hypixelLastUpdated)
+        : null,
+      isCurrent: false,
+    })
+    .returning({ id: priceSnapshots.id });
+
   return rows[0].id;
 }
 
@@ -47,16 +67,17 @@ export async function markSnapshotCurrent(
   source: "auction" | "bazaar",
   snapshotId: number
 ) {
-  const sql = getSql();
-  await sql.begin(async (transaction) => {
-    await transaction.unsafe(
-      "update price_snapshots set is_current = false where source = $1",
-      [source]
-    );
-    await transaction.unsafe(
-      "update price_snapshots set is_current = true where id = $1",
-      [snapshotId]
-    );
+  const db = getDb();
+  await db.transaction(async (transaction) => {
+    await transaction
+      .update(priceSnapshots)
+      .set({ isCurrent: false })
+      .where(eq(priceSnapshots.source, source));
+
+    await transaction
+      .update(priceSnapshots)
+      .set({ isCurrent: true })
+      .where(eq(priceSnapshots.id, snapshotId));
   });
 }
 
@@ -70,23 +91,21 @@ export async function replaceBazaarPrices(
     sellOfferPrice: number | null;
   }>
 ) {
-  const sql = getSql();
+  const db = getDb();
   if (rows.length === 0) {
     return;
   }
 
-  await sql`
-    insert into bazaar_item_prices ${sql(
-      rows.map((row) => ({
-        snapshot_id: snapshotId,
-        product_id: row.productId,
-        item_name: row.itemName,
-        buy_order_price: row.buyOrderPrice,
-        sell_offer_price: row.sellOfferPrice,
-        last_updated: row.lastUpdated ? new Date(row.lastUpdated) : null,
-      }))
-    )}
-  `;
+  await db.insert(bazaarItemPrices).values(
+    rows.map((row) => ({
+      snapshotId,
+      productId: row.productId,
+      itemName: row.itemName,
+      buyOrderPrice: row.buyOrderPrice,
+      sellOfferPrice: row.sellOfferPrice,
+      lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
+    }))
+  );
 }
 
 export async function replaceAuctionPrices(
@@ -98,22 +117,20 @@ export async function replaceAuctionPrices(
     normalizedName: string;
   }>
 ) {
-  const sql = getSql();
+  const db = getDb();
   if (rows.length === 0) {
     return;
   }
 
-  await sql`
-    insert into auction_item_prices ${sql(
-      rows.map((row) => ({
-        snapshot_id: snapshotId,
-        normalized_name: row.normalizedName,
-        display_name: row.displayName,
-        lowest_bin: row.lowestBin,
-        last_updated: row.lastUpdated ? new Date(row.lastUpdated) : null,
-      }))
-    )}
-  `;
+  await db.insert(auctionItemPrices).values(
+    rows.map((row) => ({
+      snapshotId,
+      normalizedName: row.normalizedName,
+      displayName: row.displayName,
+      lowestBin: row.lowestBin,
+      lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
+    }))
+  );
 }
 
 export async function upsertItemAliases(
@@ -124,34 +141,54 @@ export async function upsertItemAliases(
     sourcePriority: number;
   }>
 ) {
-  const sql = getSql();
+  const db = getDb();
   if (rows.length === 0) {
     return;
   }
 
-  await sql`
-    insert into item_aliases ${sql(
-      rows.map((row) => ({
-        normalized_name: row.normalizedName,
-        product_id: row.productId,
-        auction_match_name: row.auctionMatchName,
-        source_priority: row.sourcePriority,
-      }))
-    )}
-    on conflict (normalized_name) do update
-    set product_id = excluded.product_id,
-      auction_match_name = excluded.auction_match_name,
-      source_priority = excluded.source_priority
-  `;
+  for (const row of rows) {
+    await db
+      .insert(itemAliases)
+      .values({
+        normalizedName: row.normalizedName,
+        productId: row.productId,
+        auctionMatchName: row.auctionMatchName,
+        sourcePriority: row.sourcePriority,
+      })
+      .onConflictDoUpdate({
+        target: itemAliases.normalizedName,
+        set: {
+          productId: row.productId,
+          auctionMatchName: row.auctionMatchName,
+          sourcePriority: row.sourcePriority,
+        },
+      });
+  }
 }
 
 export async function cleanupOldSnapshots() {
-  const sql = getSql();
-  await sql`
-    delete from price_snapshots
-    where is_current = false
-      and fetched_at < now() - interval '7 days'
-  `;
+  const db = getDb();
+  const staleBefore = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const staleSnapshots = await db
+    .select({ id: priceSnapshots.id })
+    .from(priceSnapshots)
+    .where(
+      and(
+        eq(priceSnapshots.isCurrent, false),
+        lt(priceSnapshots.fetchedAt, staleBefore)
+      )
+    );
+
+  if (staleSnapshots.length === 0) {
+    return;
+  }
+
+  await db.delete(priceSnapshots).where(
+    inArray(
+      priceSnapshots.id,
+      staleSnapshots.map((snapshot) => snapshot.id)
+    )
+  );
 }
 
 export function recipeNamesToAliasRows(recipes: ForgeRecipe[]) {
@@ -168,6 +205,7 @@ export function recipeNamesToAliasRows(recipes: ForgeRecipe[]) {
     if (seen.has(normalized)) {
       return;
     }
+
     seen.add(normalized);
     rows.push({
       normalizedName: normalized,

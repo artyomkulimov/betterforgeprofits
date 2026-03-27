@@ -16,5 +16,5 @@ COPY packages/forge-core ./packages/forge-core
 
 WORKDIR /app/apps/worker
 
-ENTRYPOINT ["bun", "src/cli.ts"]
+ENTRYPOINT ["bun", "run", "--cwd", "apps/worker"]
 CMD ["sync-prices"]

@@ -6,7 +6,14 @@ import type {
   PriceQuote,
   PriceRepository,
 } from "@betterforgeprofits/forge-core/types";
-import { getSql } from "./client";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { getDb } from "./client";
+import {
+  auctionItemPrices,
+  bazaarItemPrices,
+  itemAliases,
+  priceSnapshots,
+} from "./schema";
 
 function buildDisplayVariants(name: string): string[] {
   const normalized = normalizeItemName(name);
@@ -25,29 +32,32 @@ export class PostgresPriceRepository implements PriceRepository {
     name: string,
     mode: MaterialPricingMode | OutputPricingMode
   ): Promise<PriceQuote | null> {
-    const sql = getSql();
+    const db = getDb();
     const candidates = buildDisplayVariants(name);
-    const rows = await sql<
-      {
-        buyOrderPrice: number | null;
-        productId: string;
-        sellOfferPrice: number | null;
-      }[]
-    >`
-      select bip.product_id as "productId",
-        bip.buy_order_price as "buyOrderPrice",
-        bip.sell_offer_price as "sellOfferPrice"
-      from item_aliases aliases
-      join price_snapshots snapshots
-        on snapshots.source = 'bazaar'
-        and snapshots.is_current = true
-      join bazaar_item_prices bip
-        on bip.snapshot_id = snapshots.id
-        and bip.product_id = aliases.product_id
-      where aliases.normalized_name = any(${sql.array(candidates)})
-      order by aliases.source_priority asc
-      limit 1
-    `;
+    const rows = await db
+      .select({
+        productId: bazaarItemPrices.productId,
+        buyOrderPrice: bazaarItemPrices.buyOrderPrice,
+        sellOfferPrice: bazaarItemPrices.sellOfferPrice,
+      })
+      .from(itemAliases)
+      .innerJoin(
+        priceSnapshots,
+        and(
+          eq(priceSnapshots.source, "bazaar"),
+          eq(priceSnapshots.isCurrent, true)
+        )
+      )
+      .innerJoin(
+        bazaarItemPrices,
+        and(
+          eq(bazaarItemPrices.snapshotId, priceSnapshots.id),
+          eq(bazaarItemPrices.productId, itemAliases.productId)
+        )
+      )
+      .where(inArray(itemAliases.normalizedName, candidates))
+      .orderBy(asc(itemAliases.sourcePriority))
+      .limit(1);
 
     const match = rows[0];
     if (!match) {
@@ -70,27 +80,31 @@ export class PostgresPriceRepository implements PriceRepository {
   }
 
   async getAuctionQuoteByName(name: string): Promise<PriceQuote | null> {
-    const sql = getSql();
+    const db = getDb();
     const candidates = buildDisplayVariants(name);
-    const rows = await sql<
-      {
-        lowestBin: number;
-        normalizedName: string;
-      }[]
-    >`
-      select aip.normalized_name as "normalizedName",
-        aip.lowest_bin as "lowestBin"
-      from item_aliases aliases
-      join price_snapshots snapshots
-        on snapshots.source = 'auction'
-        and snapshots.is_current = true
-      join auction_item_prices aip
-        on aip.snapshot_id = snapshots.id
-        and aip.normalized_name = aliases.auction_match_name
-      where aliases.normalized_name = any(${sql.array(candidates)})
-      order by aliases.source_priority asc
-      limit 1
-    `;
+    const rows = await db
+      .select({
+        normalizedName: auctionItemPrices.normalizedName,
+        lowestBin: auctionItemPrices.lowestBin,
+      })
+      .from(itemAliases)
+      .innerJoin(
+        priceSnapshots,
+        and(
+          eq(priceSnapshots.source, "auction"),
+          eq(priceSnapshots.isCurrent, true)
+        )
+      )
+      .innerJoin(
+        auctionItemPrices,
+        and(
+          eq(auctionItemPrices.snapshotId, priceSnapshots.id),
+          eq(auctionItemPrices.normalizedName, itemAliases.auctionMatchName)
+        )
+      )
+      .where(inArray(itemAliases.normalizedName, candidates))
+      .orderBy(asc(itemAliases.sourcePriority))
+      .limit(1);
 
     const match = rows[0];
     if (!match) {
@@ -105,22 +119,20 @@ export class PostgresPriceRepository implements PriceRepository {
   }
 
   async getFreshnessMeta(): Promise<PriceFreshnessMeta> {
-    const sql = getSql();
-    const rows = await sql<
-      {
-        fetchedAt: number;
-        source: "auction" | "bazaar";
-      }[]
-    >`
-      select source, fetched_at as "fetchedAt"
-      from price_snapshots
-      where is_current = true
-    `;
+    const db = getDb();
+    const rows = await db
+      .select({
+        source: priceSnapshots.source,
+        fetchedAt: priceSnapshots.fetchedAt,
+      })
+      .from(priceSnapshots)
+      .where(eq(priceSnapshots.isCurrent, true));
 
     const bazaar =
-      rows.find((row) => row.source === "bazaar")?.fetchedAt ?? null;
+      rows.find((row) => row.source === "bazaar")?.fetchedAt?.getTime() ?? null;
     const auction =
-      rows.find((row) => row.source === "auction")?.fetchedAt ?? null;
+      rows.find((row) => row.source === "auction")?.fetchedAt?.getTime() ??
+      null;
     const newest = [bazaar, auction].filter(
       (value): value is number => value !== null
     );
