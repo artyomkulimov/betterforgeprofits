@@ -8,8 +8,9 @@ import type {
   OutputPricingMode,
   SortMode,
 } from "@betterforgeprofits/forge-core/types";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
+import { CalculationStatusToast } from "@/components/calculation-status-toast";
 import { CustomSelect } from "@/components/custom-select";
 import { ForgeResultsTable } from "@/components/forge-results-table";
 import { ProfilePicker } from "@/components/profile-picker";
@@ -48,12 +49,12 @@ const materialOptions = [
   {
     value: "instant_buy",
     label: "Instant Buy",
-    detail: "Use sell offers for materials",
+    detail: "Use instant-buy pricing for materials",
   },
   {
     value: "buy_order",
     label: "Buy Order",
-    detail: "Use buy-order fill pricing for materials",
+    detail: "Use buy-order pricing for materials",
   },
 ] as const;
 
@@ -61,12 +62,12 @@ const outputOptions = [
   {
     value: "sell_offer",
     label: "Sell Offer",
-    detail: "List forged output into sell offers",
+    detail: "Use sell-offer pricing for forged output",
   },
   {
     value: "instant_sell",
     label: "Instant Sell",
-    detail: "Sell forged output to existing buy orders",
+    detail: "Use instant-sell pricing for forged output",
   },
 ] as const;
 
@@ -94,6 +95,38 @@ async function fetchJson<T>(url: string): Promise<T> {
   return payload;
 }
 
+function getCalculationToastTone(
+  isProfileLoading: boolean,
+  isAnalysisLoading: boolean,
+  showAnalysisUpdatedToast: boolean
+) {
+  if (isProfileLoading) {
+    return "profile" as const;
+  }
+
+  if (isAnalysisLoading) {
+    return "analysis" as const;
+  }
+
+  if (showAnalysisUpdatedToast) {
+    return "success" as const;
+  }
+
+  return null;
+}
+
+function getSubmitLabel(isProfileLoading: boolean, isAnalysisLoading: boolean) {
+  if (isProfileLoading) {
+    return "Loading profile...";
+  }
+
+  if (isAnalysisLoading) {
+    return "Calculating...";
+  }
+
+  return "Load profile";
+}
+
 export function HeroQueryForm() {
   const [username, setUsername] = useState("");
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
@@ -107,6 +140,8 @@ export function HeroQueryForm() {
   const [hasRequestedWorkspace, setHasRequestedWorkspace] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+  const [showAnalysisUpdatedToast, setShowAnalysisUpdatedToast] =
+    useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("profit_per_hour");
   const [allowAh, setAllowAh] = useState(false);
   const [materialPricing, setMaterialPricing] =
@@ -117,17 +152,13 @@ export function HeroQueryForm() {
   const [quickForgeLevel, setQuickForgeLevel] = useState("0");
   const [targetAmount, setTargetAmount] = useState("1");
   const [slotCount, setSlotCount] = useState("1");
+  const analysisRequestRef = useRef(0);
 
   const deferredRows = useDeferredValue(analysis?.rows ?? []);
   const isBusy = isProfileLoading || isAnalysisLoading;
   const workspaceVisible =
     hasRequestedWorkspace || profiles.length > 0 || analysis !== null;
-  let submitLabel = "Load profile";
-  if (isProfileLoading) {
-    submitLabel = "Loading profile...";
-  } else if (isAnalysisLoading) {
-    submitLabel = "Calculating...";
-  }
+  const submitLabel = getSubmitLabel(isProfileLoading, isAnalysisLoading);
   const parsedTargetAmount = useMemo(
     () => Math.max(1, Number.parseInt(targetAmount, 10) || 1),
     [targetAmount]
@@ -173,6 +204,28 @@ export function HeroQueryForm() {
       window.localStorage.removeItem(RECENT_PLAYERS_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    if (isProfileLoading || isAnalysisLoading || analysis === null || error) {
+      setShowAnalysisUpdatedToast(false);
+      return;
+    }
+
+    setShowAnalysisUpdatedToast(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowAnalysisUpdatedToast(false);
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [analysis, error, isAnalysisLoading, isProfileLoading]);
+
+  const toastTone = getCalculationToastTone(
+    isProfileLoading,
+    isAnalysisLoading,
+    showAnalysisUpdatedToast
+  );
 
   function persistRecentPlayer(nextPlayer: string) {
     const normalized = nextPlayer.trim();
@@ -250,6 +303,7 @@ export function HeroQueryForm() {
       quickForgeLevel: string;
     }
   ) {
+    const requestId = ++analysisRequestRef.current;
     setIsAnalysisLoading(true);
     setAnalysis(null);
     const params = new URLSearchParams({
@@ -262,10 +316,27 @@ export function HeroQueryForm() {
       quickForgeOverride: settings.quickForgeLevel,
     });
 
-    const analysisPayload = await fetchJson<ForgeAnalysisResponse>(
-      `/api/forge/analysis?${params.toString()}`
-    );
-    setAnalysis(analysisPayload);
+    try {
+      const analysisPayload = await fetchJson<ForgeAnalysisResponse>(
+        `/api/forge/analysis?${params.toString()}`
+      );
+      if (requestId !== analysisRequestRef.current) {
+        return false;
+      }
+
+      setAnalysis(analysisPayload);
+      return true;
+    } catch (error) {
+      if (requestId !== analysisRequestRef.current) {
+        return false;
+      }
+
+      throw error;
+    } finally {
+      if (requestId === analysisRequestRef.current) {
+        setIsAnalysisLoading(false);
+      }
+    }
   }
 
   function loadPlayer(targetUsername: string) {
@@ -296,10 +367,7 @@ export function HeroQueryForm() {
             ? submissionError.message
             : "Analysis failed."
         );
-      })
-      .finally(() => {
         setIsProfileLoading(false);
-        setIsAnalysisLoading(false);
       });
   }
 
@@ -324,24 +392,19 @@ export function HeroQueryForm() {
     }
 
     setError(null);
-    setIsAnalysisLoading(true);
     fetchAnalysisWithSettings(activeUsername, profileId, {
       allowAh: nextSettings?.allowAh ?? allowAh,
       materialPricing: nextSettings?.materialPricing ?? materialPricing,
       outputPricing: nextSettings?.outputPricing ?? outputPricing,
       hotmLevel: nextSettings?.hotmLevel ?? hotmLevel,
       quickForgeLevel: nextSettings?.quickForgeLevel ?? quickForgeLevel,
-    })
-      .catch((submissionError) => {
-        setError(
-          submissionError instanceof Error
-            ? submissionError.message
-            : "Recalculation failed."
-        );
-      })
-      .finally(() => {
-        setIsAnalysisLoading(false);
-      });
+    }).catch((submissionError) => {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "Recalculation failed."
+      );
+    });
   }
 
   function handleProfileChange(profileId: string) {
@@ -364,6 +427,8 @@ export function HeroQueryForm() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-16 px-6 pt-12 pb-28 lg:pt-16">
+      <CalculationStatusToast tone={toastTone} />
+
       <div className="max-w-4xl">
         {/*<p className="text-[var(--accent)] text-xs uppercase tracking-[0.4em]">
           Hypixel SkyBlock

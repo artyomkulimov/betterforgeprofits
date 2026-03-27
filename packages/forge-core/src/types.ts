@@ -47,6 +47,31 @@ export interface PriceFreshnessMeta {
   snapshotAgeSeconds: number | null;
 }
 
+export interface BazaarSnapshotEntry {
+  buyOrderPrice: number | null;
+  productId: string;
+  sellOfferPrice: number | null;
+}
+
+export interface AuctionSnapshotEntry {
+  lowestBin: number;
+  normalizedName: string;
+}
+
+export interface AliasSnapshotEntry {
+  auctionMatchName: string;
+  normalizedName: string;
+  productId: string | null;
+  sourcePriority: number;
+}
+
+export interface CurrentPricingSnapshot {
+  aliases: AliasSnapshotEntry[];
+  auction: AuctionSnapshotEntry[];
+  bazaar: BazaarSnapshotEntry[];
+  freshnessMeta: PriceFreshnessMeta;
+}
+
 export interface PriceRepository {
   getAuctionQuoteByName(name: string): Promise<PriceQuote | null>;
   getBazaarQuoteByName(
@@ -54,6 +79,7 @@ export interface PriceRepository {
     mode: MaterialPricingMode | OutputPricingMode
   ): Promise<PriceQuote | null>;
   getFreshnessMeta(): Promise<PriceFreshnessMeta>;
+  preloadCurrentPricing?(): Promise<CurrentPricingSnapshot>;
 }
 
 export type MaterialPricingMode = "instant_buy" | "buy_order";
@@ -62,6 +88,16 @@ export type SortMode = "profit_per_hour" | "profit_per_craft" | "forge_time";
 
 export interface ExpandedMaterial {
   itemId: string | null;
+  name: string;
+  quantity: number;
+  source: PriceQuote["source"] | "unknown";
+  totalCost: number | null;
+  unitPrice: number | null;
+}
+
+export interface AppliedPriceDetail {
+  itemId: string | null;
+  matchedId: string | null;
   name: string;
   quantity: number;
   source: PriceQuote["source"] | "unknown";
@@ -78,10 +114,14 @@ export interface ForgeAnalysisRow {
   effectiveDurationMs: number;
   hasForgeDependencies: boolean;
   hotmRequired: number | null;
+  materialPriceDetails: AppliedPriceDetail[];
+  materialPricingMode: MaterialPricingMode;
   name: string;
   otherRequirements: string[];
   outputCount: number;
   outputPrice: PriceQuote | null;
+  outputPriceDetail: AppliedPriceDetail | null;
+  outputPricingMode: OutputPricingMode;
   priceCoverage: PriceCoverage;
   profitPerCraft: number | null;
   profitPerHour: number | null;

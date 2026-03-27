@@ -1,5 +1,6 @@
 import { getForgeBatchMetrics } from "@betterforgeprofits/forge-core/presentation";
 import type { ForgeAnalysisRow } from "@betterforgeprofits/forge-core/types";
+import { CraftPricingPopover } from "@/components/craft-pricing-popover";
 import { RecipeCostBreakdown } from "@/components/recipe-cost-breakdown";
 
 const DESKTOP_LOADING_ROWS = [
@@ -190,7 +191,7 @@ export function ForgeResultsTable({
                   <td className="px-4 py-5">
                     <div className="flex items-start gap-3">
                       <SourceBadge row={row} />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-[family-name:var(--font-atlas-serif)] text-[var(--text-main)] text-xl">
                           {row.name}
                         </p>
@@ -204,6 +205,7 @@ export function ForgeResultsTable({
                           {slotCount === 1 ? "" : "s"}
                         </p>
                       </div>
+                      <CraftPricingPopover row={row} />
                     </div>
                   </td>
                   <td className="px-4 py-5">{row.hotmRequired ?? "N/A"}</td>
@@ -261,7 +263,10 @@ export function ForgeResultsTable({
                     {slotCount === 1 ? "" : "s"}
                   </p>
                 </div>
-                <SourceBadge row={row} />
+                <div className="flex flex-col items-end gap-2">
+                  <SourceBadge row={row} />
+                  <CraftPricingPopover row={row} />
+                </div>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-4 text-[var(--text-soft)] text-sm">
                 <div>

@@ -6,6 +6,7 @@ import {
 } from "./hotm";
 import { getForgeRecipes, normalizeItemName } from "./recipes";
 import type {
+  AppliedPriceDetail,
   ExpandedMaterial,
   ForgeAnalysisResponse,
   ForgeAnalysisRow,
@@ -23,6 +24,13 @@ interface AnalysisOptions {
   allowAh: boolean;
   hotmOverride?: number | null;
   materialPricing: MaterialPricingMode;
+  onRecipeTiming?: (timing: {
+    durationMs: number;
+    name: string;
+    priceCoverage: PriceCoverage;
+    profitPerCraft: number | null;
+    recipeId: string;
+  }) => void;
   outputPricing: OutputPricingMode;
   playerUuid: string;
   priceRepository: PriceRepository;
@@ -249,6 +257,18 @@ function aggregateMaterials(materials: ExpandedMaterial[]): ExpandedMaterial[] {
   return [...grouped.values()].sort(
     (left, right) => right.quantity - left.quantity
   );
+}
+
+function toAppliedPriceDetail(material: ExpandedMaterial): AppliedPriceDetail {
+  return {
+    itemId: material.itemId,
+    matchedId: material.itemId,
+    name: material.name,
+    quantity: material.quantity,
+    source: material.source,
+    totalCost: material.totalCost,
+    unitPrice: material.unitPrice,
+  };
 }
 
 async function quoteLeaf(
@@ -480,6 +500,7 @@ async function analyzeRecipe(
     name: recipe.name,
     category: recipe.category,
     hotmRequired: recipe.requirements.hotmTier,
+    materialPricingMode: materialPricing,
     otherRequirements: recipe.requirements.text,
     baseDurationMs: recipe.durationMs,
     effectiveDurationMs,
@@ -487,12 +508,25 @@ async function analyzeRecipe(
     quickForgeReduction: quickForgeReductionForLevel(quickForgeLevel),
     outputCount: recipe.output.quantity,
     outputPrice,
+    outputPriceDetail: outputPrice
+      ? {
+          itemId: recipe.output.itemId,
+          matchedId: outputPrice.matchedId,
+          name: recipe.output.name,
+          quantity: recipe.output.quantity,
+          source: outputPrice.source,
+          totalCost: outputValue,
+          unitPrice: outputPrice.unitPrice,
+        }
+      : null,
+    outputPricingMode: outputPricing,
     baseMaterialCost,
     profitPerCraft,
     profitPerHour,
     usesAhPricing,
     hasForgeDependencies,
     priceCoverage: coverage,
+    materialPriceDetails: aggregatedMaterials.map(toAppliedPriceDetail),
     rawMaterials: aggregatedMaterials,
   };
 }
@@ -505,6 +539,7 @@ export async function analyzeForge({
   outputPricing,
   allowAh,
   hotmOverride,
+  onRecipeTiming,
   quickForgeOverride,
   priceRepository,
 }: AnalysisOptions): Promise<ForgeAnalysisResponse> {
@@ -547,8 +582,9 @@ export async function analyzeForge({
   );
 
   const rows = await Promise.all(
-    eligibleRecipes.map((recipe) =>
-      analyzeRecipe(
+    eligibleRecipes.map(async (recipe) => {
+      const startedAt = performance.now();
+      const row = await analyzeRecipe(
         recipe,
         effectiveQuickForgeLevel,
         recipeNameIndex,
@@ -556,8 +592,16 @@ export async function analyzeForge({
         outputPricing,
         allowAh,
         priceRepository
-      )
-    )
+      );
+      onRecipeTiming?.({
+        recipeId: recipe.id,
+        name: recipe.name,
+        durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+        priceCoverage: row.priceCoverage,
+        profitPerCraft: row.profitPerCraft,
+      });
+      return row;
+    })
   );
 
   return {

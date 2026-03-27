@@ -1,4 +1,7 @@
-import { PostgresPriceRepository } from "@betterforgeprofits/db/repository";
+import {
+  InMemoryPriceRepository,
+  PostgresPriceRepository,
+} from "@betterforgeprofits/db/repository";
 import {
   analyzeForge,
   selectDefaultProfile,
@@ -12,6 +15,38 @@ import { NextResponse } from "next/server";
 
 import { getSkyBlockProfiles } from "@/lib/api/hypixel";
 import { resolveMinecraftUsername } from "@/lib/api/mojang";
+
+function roundDuration(durationMs: number): number {
+  return Math.round(durationMs * 100) / 100;
+}
+
+function logAnalysisEvent(
+  event: string,
+  requestId: string,
+  fields: Record<string, unknown> = {}
+) {
+  console.info("[forge-analysis]", {
+    event,
+    requestId,
+    ...fields,
+  });
+}
+
+async function measureAsync<T>(
+  event: string,
+  requestId: string,
+  run: () => Promise<T>,
+  fields: Record<string, unknown> = {}
+): Promise<{ durationMs: number; result: T }> {
+  const startedAt = performance.now();
+  const result = await run();
+  const durationMs = roundDuration(performance.now() - startedAt);
+  logAnalysisEvent(event, requestId, {
+    ...fields,
+    durationMs,
+  });
+  return { result, durationMs };
+}
 
 function parseAnalysisRequest(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -36,6 +71,10 @@ function parseAnalysisRequest(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const requestId = crypto.randomUUID();
+  const requestStartedAt = performance.now();
+  const debugAnalysis = process.env.DEBUG_FORGE_ANALYSIS === "true";
+
   try {
     const {
       allowAh,
@@ -47,15 +86,37 @@ export async function GET(request: Request) {
       username,
     } = parseAnalysisRequest(request);
 
+    logAnalysisEvent("request_started", requestId, {
+      allowAh,
+      materialPricing,
+      outputPricing,
+      requestedProfile: Boolean(requestedProfileId),
+      username,
+    });
+
     if (!username) {
+      logAnalysisEvent("request_rejected", requestId, {
+        durationMs: roundDuration(performance.now() - requestStartedAt),
+        reason: "missing_username",
+      });
       return NextResponse.json(
         { error: "Username is required." },
         { status: 400 }
       );
     }
 
-    const player = await resolveMinecraftUsername(username);
-    const payload = await getSkyBlockProfiles(player.uuid);
+    const { result: player } = await measureAsync(
+      "username_resolved",
+      requestId,
+      () => resolveMinecraftUsername(username),
+      { username }
+    );
+    const { result: payload } = await measureAsync(
+      "profiles_fetched",
+      requestId,
+      () => getSkyBlockProfiles(player.uuid),
+      { username }
+    );
     const profiles = payload.profiles ?? [];
 
     if (profiles.length === 0) {
@@ -70,19 +131,75 @@ export async function GET(request: Request) {
       throw new Error("No usable SkyBlock profile was found for this player.");
     }
 
-    const result = await analyzeForge({
-      profileId,
-      profiles,
-      playerUuid: player.uuid,
-      priceRepository: new PostgresPriceRepository(),
-      materialPricing,
-      outputPricing,
-      allowAh,
-      hotmOverride: Number.isNaN(hotmOverride) ? null : hotmOverride,
-      quickForgeOverride: Number.isNaN(quickForgeOverride)
-        ? null
-        : quickForgeOverride,
+    logAnalysisEvent("profile_selected", requestId, {
+      fallbackProfileId: fallback?.profileId ?? null,
+      profileCount: summaries.length,
+      selectedProfileId: profileId,
     });
+
+    const dbRepository = new PostgresPriceRepository();
+    const { result: snapshot, durationMs: preloadDurationMs } =
+      await measureAsync("pricing_snapshot_preloaded", requestId, () =>
+        dbRepository.preloadCurrentPricing()
+      );
+    const requestRepository = new InMemoryPriceRepository(snapshot);
+    const recipeTimings: Array<{
+      durationMs: number;
+      name: string;
+      priceCoverage: string;
+      profitPerCraft: number | null;
+      recipeId: string;
+    }> = [];
+
+    const { result } = await measureAsync("analysis_completed", requestId, () =>
+      analyzeForge({
+        profileId,
+        profiles,
+        playerUuid: player.uuid,
+        priceRepository: requestRepository,
+        materialPricing,
+        outputPricing,
+        allowAh,
+        hotmOverride: Number.isNaN(hotmOverride) ? null : hotmOverride,
+        quickForgeOverride: Number.isNaN(quickForgeOverride)
+          ? null
+          : quickForgeOverride,
+        onRecipeTiming: (timing) => {
+          if (debugAnalysis) {
+            recipeTimings.push(timing);
+          }
+        },
+      })
+    );
+
+    const requestStats = requestRepository.getRequestStats();
+    const totalDurationMs = roundDuration(performance.now() - requestStartedAt);
+
+    logAnalysisEvent("request_completed", requestId, {
+      totalDurationMs,
+      preloadDurationMs,
+      returnedRows: result.rows.length,
+      snapshotAgeSeconds: result.pricingMeta.snapshotAgeSeconds,
+      ...requestStats,
+    });
+
+    if (debugAnalysis) {
+      const slowestRecipes = [...recipeTimings]
+        .sort((left, right) => right.durationMs - left.durationMs)
+        .slice(0, 5)
+        .map((timing) => ({
+          recipeId: timing.recipeId,
+          name: timing.name,
+          durationMs: timing.durationMs,
+          priceCoverage: timing.priceCoverage,
+          profitPerCraft: timing.profitPerCraft,
+        }));
+
+      logAnalysisEvent("debug_recipe_timings", requestId, {
+        eligibleRecipes: recipeTimings.length,
+        slowestRecipes,
+      });
+    }
 
     return NextResponse.json(result);
   } catch (error) {
@@ -93,6 +210,12 @@ export async function GET(request: Request) {
       message === "No usable SkyBlock profile was found for this player."
         ? 404
         : 500;
+
+    logAnalysisEvent("request_failed", requestId, {
+      durationMs: roundDuration(performance.now() - requestStartedAt),
+      message,
+      status,
+    });
 
     return NextResponse.json({ error: message }, { status });
   }
