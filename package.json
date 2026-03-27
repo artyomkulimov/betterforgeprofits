@@ -6,16 +6,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun --cwd apps/web run dev",
-    "build": "bun --cwd apps/web run build",
-    "start": "bun --cwd apps/web run start",
+    "dev": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build",
+    "start": "bun run --cwd apps/web start",
     "lint": "ultracite check",
     "check": "ultracite check",
     "fix": "ultracite fix",
-    "worker:migrate": "bun --cwd apps/worker run migrate",
-    "worker:sync-prices": "bun --cwd apps/worker run sync-prices",
-    "worker:backfill-aliases": "bun --cwd apps/worker run backfill-aliases",
-    "worker:cleanup": "bun --cwd apps/worker run cleanup"
+    "worker:migrate": "bun run --cwd apps/worker migrate",
+    "worker:sync-prices": "bun run --cwd apps/worker sync-prices",
+    "worker:backfill-aliases": "bun run --cwd apps/worker backfill-aliases",
+    "worker:cleanup": "bun run --cwd apps/worker cleanup"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.7",
