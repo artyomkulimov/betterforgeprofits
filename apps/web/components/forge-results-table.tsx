@@ -1,7 +1,9 @@
 import { getForgeBatchMetrics } from "@betterforgeprofits/forge-core/presentation";
 import type { ForgeAnalysisRow } from "@betterforgeprofits/forge-core/types";
+import Image from "next/image";
 import { CraftPricingPopover } from "@/components/craft-pricing-popover";
 import { RecipeCostBreakdown } from "@/components/recipe-cost-breakdown";
+import { getForgeItemImage } from "@/lib/forge-item-images";
 
 const DESKTOP_LOADING_ROWS = [
   "desktop-row-1",
@@ -73,6 +75,28 @@ function SourceBadge({ row }: { row: ForgeAnalysisRow }) {
     <span className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/60 px-2 py-1 text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
       Bazaar
     </span>
+  );
+}
+
+function ForgeItemThumbnail({ row }: { row: ForgeAnalysisRow }) {
+  const image = getForgeItemImage(row.name);
+
+  if (!image) {
+    return null;
+  }
+
+  return (
+    <div className="flex h-11 w-11 items-center justify-center border border-[var(--border)] bg-[var(--panel)]/72 p-1.5 backdrop-blur-sm">
+      <Image
+        alt={image.alt}
+        className="h-auto w-full object-contain"
+        height={40}
+        priority={false}
+        src={image.src}
+        unoptimized={image.src.endsWith(".gif")}
+        width={40}
+      />
+    </div>
   );
 }
 
@@ -190,7 +214,10 @@ export function ForgeResultsTable({
                 <tr className="border-[var(--border)] border-t align-top text-[var(--text-soft)] text-sm">
                   <td className="px-4 py-5">
                     <div className="flex items-start gap-3">
-                      <SourceBadge row={row} />
+                      <div className="flex w-[3.4rem] shrink-0 flex-col items-start gap-2">
+                        <SourceBadge row={row} />
+                        <ForgeItemThumbnail row={row} />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-[family-name:var(--font-atlas-serif)] text-[var(--text-main)] text-xl">
                           {row.name}
@@ -259,7 +286,7 @@ export function ForgeResultsTable({
               key={row.recipeId}
             >
               <div className="flex items-start justify-between gap-4">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-[family-name:var(--font-atlas-serif)] text-2xl text-[var(--text-main)]">
                     {row.name}
                   </p>
@@ -275,6 +302,7 @@ export function ForgeResultsTable({
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <SourceBadge row={row} />
+                  <ForgeItemThumbnail row={row} />
                   <CraftPricingPopover row={row} />
                 </div>
               </div>

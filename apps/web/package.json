@@ -7,14 +7,12 @@
     "build": "next build && bun scripts/normalize-routes-manifest.mjs",
     "start": "bun scripts/normalize-routes-manifest.mjs && next start",
     "lint": "ultracite check",
-    "extract:recipes": "bun lib/forge/extract-recipes.ts",
     "check": "ultracite check",
     "fix": "ultracite fix"
   },
   "dependencies": {
     "@betterforgeprofits/db": "workspace:*",
     "@betterforgeprofits/forge-core": "workspace:*",
-    "cheerio": "^1.0.0",
     "lucide-react": "^1.7.0",
     "next": "^15.2.4",
     "react": "^19.0.0",
