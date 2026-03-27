@@ -62,40 +62,45 @@ function formatDuration(ms: number): string {
   return parts.join(" ");
 }
 
-function SourceBadge({ row }: { row: ForgeAnalysisRow }) {
-  if (row.usesAhPricing) {
-    return (
-      <span className="rounded-sm border border-[var(--accent)]/40 bg-[var(--panel-strong)] px-2 py-1 text-[10px] text-[var(--accent)] uppercase tracking-[0.18em]">
-        AH
-      </span>
-    );
-  }
-
-  return (
-    <span className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/60 px-2 py-1 text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
-      Bazaar
-    </span>
-  );
-}
-
 function ForgeItemThumbnail({ row }: { row: ForgeAnalysisRow }) {
   const image = getForgeItemImage(row.name);
+  const usesAh = row.usesAhPricing;
+  const sourceTitle = usesAh
+    ? "Auction house pricing used for this row"
+    : "Bazaar pricing for this row";
 
   if (!image) {
     return null;
   }
 
   return (
-    <div className="flex h-11 w-11 items-center justify-center border border-[var(--border)] bg-[var(--panel)]/72 p-1.5 backdrop-blur-sm">
-      <Image
-        alt={image.alt}
-        className="h-auto w-full object-contain"
-        height={40}
-        priority={false}
-        src={image.src}
-        unoptimized={image.src.endsWith(".gif")}
-        width={40}
-      />
+    <div className="relative shrink-0" title={sourceTitle}>
+      <div
+        className={
+          usesAh
+            ? "flex h-11 w-11 items-center justify-center border border-[var(--accent)]/55 bg-[var(--panel)]/72 p-1.5 ring-1 ring-[var(--accent)]/35 backdrop-blur-sm"
+            : "flex h-11 w-11 items-center justify-center border border-[var(--border)] bg-[var(--panel)]/72 p-1.5 backdrop-blur-sm"
+        }
+      >
+        <Image
+          alt={image.alt}
+          className="h-auto w-full object-contain"
+          height={40}
+          priority={false}
+          src={image.src}
+          unoptimized={image.src.endsWith(".gif")}
+          width={40}
+        />
+      </div>
+      <span
+        className={
+          usesAh
+            ? "absolute -right-px -bottom-px flex min-w-[1.625rem] items-center justify-center rounded-tl-sm border border-[var(--accent)]/45 bg-[var(--panel-strong)] px-1.5 py-0.5 font-semibold text-[12px] text-[var(--accent)] uppercase leading-none tracking-wide"
+            : "absolute -right-px -bottom-px flex min-w-[1.625rem] items-center justify-center rounded-tl-sm border border-[var(--border)] bg-[var(--bg)]/90 px-1.5 py-0.5 font-semibold text-[12px] text-[var(--text-muted)] uppercase leading-none tracking-wide"
+        }
+      >
+        {usesAh ? "AH" : "BZ"}
+      </span>
     </div>
   );
 }
@@ -118,15 +123,15 @@ export function ForgeResultsTable({
       <div className="space-y-4">
         <div className="hidden overflow-hidden border border-[var(--border)] lg:block">
           <table className="min-w-full border-collapse">
-            <thead className="bg-[var(--panel)]/85 text-left text-[10px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
+            <thead className="bg-[var(--panel)]/85 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
               <tr>
-                <th className="px-4 py-4">Item</th>
-                <th className="px-4 py-4">HOTM</th>
-                <th className="px-4 py-4">Total Time</th>
-                <th className="px-4 py-4">Total Mats</th>
-                <th className="px-4 py-4">Total Revenue</th>
-                <th className="px-4 py-4">Total Profit</th>
-                <th className="px-4 py-4">Profit / Hr</th>
+                <th className="px-4 py-4 text-left">Item</th>
+                <th className="px-4 py-4 text-center">HOTM</th>
+                <th className="px-4 py-4 text-center">Total Time</th>
+                <th className="px-4 py-4 text-center">Total Mats</th>
+                <th className="px-4 py-4 text-center">Total Revenue</th>
+                <th className="px-4 py-4 text-center">Total Profit</th>
+                <th className="px-4 py-4 text-center">Profit / Hr</th>
               </tr>
             </thead>
             <tbody>
@@ -136,8 +141,8 @@ export function ForgeResultsTable({
                   key={rowKey}
                 >
                   <td className="px-4 py-5">
-                    <div className="flex items-start gap-3">
-                      <span className="inline-flex h-7 w-14 animate-pulse rounded-sm bg-[var(--panel-strong)]/90" />
+                    <div className="flex items-center gap-3">
+                      <span className="h-11 w-11 shrink-0 animate-pulse rounded-sm border border-[var(--border)] bg-[var(--panel-strong)]/90" />
                       <div className="space-y-2">
                         <span className="block h-6 w-44 animate-pulse rounded-sm bg-[var(--panel-strong)]/90" />
                         <span className="block h-3 w-24 animate-pulse rounded-sm bg-[var(--panel-strong)]/70" />
@@ -145,8 +150,11 @@ export function ForgeResultsTable({
                     </div>
                   </td>
                   {DESKTOP_LOADING_CELLS.map((cellKey) => (
-                    <td className="px-4 py-5" key={`${rowKey}-${cellKey}`}>
-                      <span className="block h-5 w-20 animate-pulse rounded-sm bg-[var(--panel-strong)]/90" />
+                    <td
+                      className="px-4 py-5 text-center"
+                      key={`${rowKey}-${cellKey}`}
+                    >
+                      <span className="mx-auto block h-5 w-20 animate-pulse rounded-sm bg-[var(--panel-strong)]/90 tabular-nums" />
                     </td>
                   ))}
                 </tr>
@@ -192,15 +200,15 @@ export function ForgeResultsTable({
     <div className="space-y-4">
       <div className="hidden overflow-hidden border border-[var(--border)] lg:block">
         <table className="min-w-full border-collapse">
-          <thead className="bg-[var(--panel)]/85 text-left text-[10px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
+          <thead className="bg-[var(--panel)]/85 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
             <tr>
-              <th className="px-4 py-4">Item</th>
-              <th className="px-4 py-4">HOTM</th>
-              <th className="px-4 py-4">Total Time</th>
-              <th className="px-4 py-4">Total Mats</th>
-              <th className="px-4 py-4">Total Revenue</th>
-              <th className="px-4 py-4">Total Profit</th>
-              <th className="px-4 py-4">Profit / Hr</th>
+              <th className="px-4 py-4 text-left">Item</th>
+              <th className="px-4 py-4 text-center">HOTM</th>
+              <th className="px-4 py-4 text-center">Total Time</th>
+              <th className="px-4 py-4 text-center">Total Mats</th>
+              <th className="px-4 py-4 text-center">Total Revenue</th>
+              <th className="px-4 py-4 text-center">Total Profit</th>
+              <th className="px-4 py-4 text-center">Profit / Hr</th>
             </tr>
           </thead>
           {rows.map((row) => {
@@ -211,50 +219,43 @@ export function ForgeResultsTable({
 
             return (
               <tbody key={row.recipeId}>
-                <tr className="border-[var(--border)] border-t align-top text-[var(--text-soft)] text-sm">
+                <tr className="border-[var(--border)] border-t align-middle text-[var(--text-soft)] text-sm">
                   <td className="px-4 py-5">
-                    <div className="flex items-start gap-3">
-                      <div className="flex w-[3.4rem] shrink-0 flex-col items-start gap-2">
-                        <SourceBadge row={row} />
-                        <ForgeItemThumbnail row={row} />
-                      </div>
+                    <div className="flex items-center gap-4">
+                      <ForgeItemThumbnail row={row} />
                       <div className="min-w-0 flex-1">
                         <p className="font-[family-name:var(--font-atlas-serif)] text-[var(--text-main)] text-xl">
                           {row.name}
                         </p>
-                        <p className="mt-1 text-[var(--text-faint)] text-xs uppercase tracking-[0.18em]">
+                        <p className="mt-1 text-[var(--text-faint)] text-sm uppercase tracking-[0.18em]">
                           {row.category}
                         </p>
-                        <p className="mt-2 text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
-                          {metrics.craftsNeeded} craft
-                          {metrics.craftsNeeded === 1 ? "" : "s"} ·{" "}
-                          {metrics.totalOutput} output · {slotCount} slot
-                          {slotCount === 1 ? "" : "s"}
-                        </p>
                       </div>
-                      <CraftPricingPopover row={row} />
+                      <CraftPricingPopover panelAlign="end" row={row} />
                     </div>
                   </td>
-                  <td className="px-4 py-5">{row.hotmRequired ?? "N/A"}</td>
-                  <td className="px-4 py-5">
+                  <td className="px-4 py-5 text-center tabular-nums">
+                    {row.hotmRequired ?? "N/A"}
+                  </td>
+                  <td className="px-4 py-5 text-center tabular-nums">
                     <div className="space-y-1">
                       <p>{formatDuration(metrics.totalDurationMs)}</p>
-                      <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                      <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
                         Forge Chain:{" "}
                         {formatDuration(metrics.totalRecursiveDurationMs)}
                       </p>
                     </div>
                   </td>
-                  <td className="px-4 py-5">
+                  <td className="px-4 py-5 text-center tabular-nums">
                     {formatCoins(metrics.totalMaterialCost)}
                   </td>
-                  <td className="px-4 py-5">
+                  <td className="px-4 py-5 text-center tabular-nums">
                     {formatCoins(metrics.totalOutputValue)}
                   </td>
-                  <td className="px-4 py-5">
+                  <td className="px-4 py-5 text-center tabular-nums">
                     {formatCoins(metrics.totalProfit)}
                   </td>
-                  <td className="px-4 py-5">
+                  <td className="px-4 py-5 text-center tabular-nums">
                     {formatCoins(metrics.totalProfitPerHour)}
                   </td>
                 </tr>
@@ -290,43 +291,36 @@ export function ForgeResultsTable({
                   <p className="font-[family-name:var(--font-atlas-serif)] text-2xl text-[var(--text-main)]">
                     {row.name}
                   </p>
-                  <p className="mt-1 text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+                  <p className="mt-1 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                     {row.category}
                   </p>
-                  <p className="mt-2 text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
-                    {metrics.craftsNeeded} craft
-                    {metrics.craftsNeeded === 1 ? "" : "s"} ·{" "}
-                    {metrics.totalOutput} output · {slotCount} slot
-                    {slotCount === 1 ? "" : "s"}
-                  </p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <SourceBadge row={row} />
+                <div className="flex shrink-0 items-center gap-2">
                   <ForgeItemThumbnail row={row} />
-                  <CraftPricingPopover row={row} />
+                  <CraftPricingPopover panelAlign="end" row={row} />
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-4 text-[var(--text-soft)] text-sm">
                 <div>
-                  <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     HOTM
                   </p>
                   <p className="mt-1">{row.hotmRequired ?? "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     Total Time
                   </p>
                   <p className="mt-1">
                     {formatDuration(metrics.totalDurationMs)}
                   </p>
-                  <p className="mt-1 text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                  <p className="mt-1 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
                     Forge Chain:{" "}
                     {formatDuration(metrics.totalRecursiveDurationMs)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     Total Mats
                   </p>
                   <p className="mt-1">
@@ -334,7 +328,7 @@ export function ForgeResultsTable({
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     Profit / Hr
                   </p>
                   <p className="mt-1">
@@ -342,7 +336,7 @@ export function ForgeResultsTable({
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     Total Revenue
                   </p>
                   <p className="mt-1">
@@ -350,7 +344,7 @@ export function ForgeResultsTable({
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     Total Profit
                   </p>
                   <p className="mt-1">{formatCoins(metrics.totalProfit)}</p>

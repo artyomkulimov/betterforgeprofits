@@ -76,7 +76,7 @@ function SourcePill({ source }: { source: PriceQuote["source"] | "unknown" }) {
 
   return (
     <span
-      className={`rounded-sm border px-2 py-1 text-[10px] uppercase tracking-[0.18em] ${className}`}
+      className={`rounded-sm border px-2 py-1 text-[11px] uppercase tracking-[0.18em] ${className}`}
     >
       {source}
     </span>
@@ -128,7 +128,7 @@ function CraftTreeBranch({
                   {node.name}
                 </p>
                 {node.isCraftable ? (
-                  <span className="rounded-sm border border-[var(--accent)]/25 bg-[var(--panel)]/55 px-2 py-1 text-[10px] text-[var(--accent)] uppercase tracking-[0.18em]">
+                  <span className="rounded-sm border border-[var(--accent)]/25 bg-[var(--panel)]/55 px-2 py-1 text-[11px] text-[var(--accent)] uppercase tracking-[0.18em]">
                     Forge step
                   </span>
                 ) : null}
@@ -136,34 +136,34 @@ function CraftTreeBranch({
                   <SourcePill source={node.leafPriceDetail.source} />
                 ) : null}
               </div>
-              <p className="mt-2 text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="mt-2 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Qty · {formatQuantity(node.quantity)}
               </p>
               {node.effectiveForgeDurationMs === null ? null : (
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-sm border border-[var(--accent)]/25 bg-[var(--panel-strong)]/55 px-2 py-1 text-[10px] text-[var(--accent)] uppercase tracking-[0.18em]">
+                  <span className="rounded-sm border border-[var(--accent)]/25 bg-[var(--panel-strong)]/55 px-2 py-1 text-[11px] text-[var(--accent)] uppercase tracking-[0.18em]">
                     Forge Time · {formatDuration(node.effectiveForgeDurationMs)}
                   </span>
                   {node.quantity > 1 && forgeStepTotalDurationMs !== null ? (
-                    <span className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/65 px-2 py-1 text-[10px] text-[var(--text-muted)] uppercase tracking-[0.16em]">
+                    <span className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/65 px-2 py-1 text-[11px] text-[var(--text-muted)] uppercase tracking-[0.16em]">
                       Step Total · {formatDuration(forgeStepTotalDurationMs)}
                     </span>
                   ) : null}
                 </div>
               )}
               {node.leafPriceDetail?.matchedId ? (
-                <p className="mt-1 break-all text-[10px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                <p className="mt-1 break-all text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
                   Match: {node.leafPriceDetail.matchedId}
                 </p>
               ) : null}
               {node.leafPriceDetail ? (
-                <p className="mt-2 text-[var(--text-muted)] text-xs">
+                <p className="mt-2 text-[var(--text-muted)] text-sm">
                   Unit {formatCoins(node.leafPriceDetail.unitPrice)}
                 </p>
               ) : null}
             </div>
             <div className="shrink-0 sm:text-right">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Subtotal
               </p>
               <p className="mt-1 text-[var(--text-soft)] text-base">
@@ -180,7 +180,7 @@ function CraftTreeBranch({
             className="ml-3 border-[var(--accent)]/18 border-l pl-4"
             style={{ marginLeft: `${paddingLeft + 10}px` }}
           >
-            <p className="mb-3 text-[10px] text-[var(--accent)] uppercase tracking-[0.26em]">
+            <p className="mb-3 text-[11px] text-[var(--accent)] uppercase tracking-[0.26em]">
               Requires
             </p>
             <div className="space-y-3">

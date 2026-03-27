@@ -46,7 +46,7 @@ export function CalculationStatusToast({ tone }: CalculationStatusToastProps) {
             />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
+            <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
               {copy.toneLabel}
             </p>
             <p className="mt-1 text-[var(--text-main)] text-sm">{copy.title}</p>

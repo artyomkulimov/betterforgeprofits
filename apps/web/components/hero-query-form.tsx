@@ -467,15 +467,13 @@ export function HeroQueryForm() {
         </p>*/}
         <h1 className="mt-5 font-[family-name:var(--font-atlas-serif)] font-normal text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
           Forge profit,
-          <br />
-          <span className="text-[var(--text-main)] italic">
-            sorted the way you actually want it.
+          <span className="mt-5 block text-[var(--text-main)] italic sm:mt-6">
+            ranked your way.
           </span>
         </h1>
         <p className="mt-5 max-w-3xl text-[var(--text-soft)] text-base leading-relaxed">
-          Pick a player, override HOTM or Quick Forge if needed, choose how mats
-          and outputs should be priced, then rank profitable forge crafts in one
-          list.
+          Enter a player, tweak HOTM / Quick Forge and bazaar pricing, get one
+          sorted list of crafts.
         </p>
 
         <form
@@ -483,7 +481,7 @@ export function HeroQueryForm() {
           onSubmit={handleSubmit}
         >
           <label className="block">
-            <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
+            <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
               Minecraft username
             </span>
             <input
@@ -496,7 +494,7 @@ export function HeroQueryForm() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             {recentPlayerOptions.length > 0 ? (
               <div className="min-w-64">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
+                <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
                   Recently visited
                 </span>
                 <CustomSelect
@@ -545,131 +543,170 @@ export function HeroQueryForm() {
 
       {workspaceVisible ? (
         <>
-          <div className="animate-[panel-rise_420ms_ease-out]">
-            <ProfileSummary
-              analysis={analysis}
-              isLoading={
-                isProfileLoading || (analysis === null && error === null)
-              }
-              profile={contextProfile}
-            />
+          <div className="space-y-6">
+            <div className="animate-[panel-rise_420ms_ease-out]">
+              <ProfileSummary
+                analysis={analysis}
+                isLoading={
+                  isProfileLoading || (analysis === null && error === null)
+                }
+                profile={contextProfile}
+              />
+            </div>
+            <div className="animate-[panel-rise_480ms_ease-out]">
+              <details className="group">
+                <summary className="flex cursor-pointer list-none items-center justify-between border border-[var(--border)] bg-[var(--bg)]/45 px-4 py-3 text-[var(--accent)] text-sm uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50">
+                  <span>Advanced — HOTM & Quick Forge</span>
+                  <span className="text-[11px] text-[var(--text-faint)] tracking-[0.24em] transition group-open:rotate-180">
+                    ▾
+                  </span>
+                </summary>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="block min-w-0">
+                    <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                      HOTM
+                    </span>
+                    <CustomSelect
+                      disabled={isAnalysisLoading}
+                      onChange={(value: string) => {
+                        setHotmLevel(value);
+                        rerunAnalysis(selectedProfileId, { hotmLevel: value });
+                      }}
+                      options={hotmOptions}
+                      value={hotmLevel}
+                    />
+                  </div>
+                  <div className="block min-w-0">
+                    <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                      Quick Forge
+                    </span>
+                    <CustomSelect
+                      disabled={isAnalysisLoading}
+                      onChange={(value: string) => {
+                        setQuickForgeLevel(value);
+                        rerunAnalysis(selectedProfileId, {
+                          quickForgeLevel: value,
+                        });
+                      }}
+                      options={quickForgeOptions}
+                      value={quickForgeLevel}
+                    />
+                  </div>
+                </div>
+              </details>
+            </div>
           </div>
 
-          <section className="animate-[panel-rise_520ms_ease-out] space-y-8 border-[var(--border)] border-t pt-12">
-            <div className="grid gap-4 lg:grid-cols-4">
-              <div className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+          <section className="mt-10 animate-[panel-rise_520ms_ease-out] space-y-8 border-[var(--border)] border-t pt-12">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="border border-[var(--border)] bg-[var(--panel)]/40 p-4">
+                <span className="mb-3 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                   Sort by
                 </span>
-                <CustomSelect
-                  disabled={isAnalysisLoading}
-                  onChange={(value: string) => setSortMode(value as SortMode)}
-                  options={sortOptions}
-                  value={sortMode}
-                />
+                <div className="block min-w-0">
+                  <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                    Order
+                  </span>
+                  <CustomSelect
+                    disabled={isAnalysisLoading}
+                    onChange={(value: string) => setSortMode(value as SortMode)}
+                    options={sortOptions}
+                    value={sortMode}
+                  />
+                </div>
               </div>
 
-              <div className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
-                  Materials
+              <div className="border border-[var(--border)] bg-[var(--panel)]/40 p-4">
+                <span className="mb-3 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  Batch
                 </span>
-                <CustomSelect
-                  disabled={isAnalysisLoading}
-                  onChange={(value: string) => {
-                    const nextValue = value as MaterialPricingMode;
-                    setMaterialPricing(nextValue);
-                    rerunAnalysis(selectedProfileId, {
-                      materialPricing: nextValue,
-                    });
-                  }}
-                  options={materialOptions}
-                  value={materialPricing}
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block min-w-0">
+                    <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                      Target amount
+                    </span>
+                    <input
+                      className="min-h-[46px] w-full border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm outline-none transition focus:border-[var(--accent)] disabled:cursor-wait disabled:opacity-60"
+                      disabled={isAnalysisLoading}
+                      min={1}
+                      onChange={(event) => setTargetAmount(event.target.value)}
+                      step={1}
+                      type="number"
+                      value={targetAmount}
+                    />
+                  </label>
+                  <div className="block min-w-0">
+                    <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                      Forge slots
+                    </span>
+                    <CustomSelect
+                      disabled={isAnalysisLoading}
+                      onChange={(value: string) => setSlotCount(value)}
+                      options={slotOptions}
+                      value={slotCount}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
-                  Forged item
+              <div className="border border-[var(--border)] bg-[var(--panel)]/40 p-4">
+                <span className="mb-3 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                  Bazaar pricing
                 </span>
-                <CustomSelect
-                  disabled={isAnalysisLoading}
-                  onChange={(value: string) => {
-                    const nextValue = value as OutputPricingMode;
-                    setOutputPricing(nextValue);
-                    rerunAnalysis(selectedProfileId, {
-                      outputPricing: nextValue,
-                    });
-                  }}
-                  options={outputOptions}
-                  value={outputPricing}
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="block min-w-0">
+                    <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                      Materials
+                    </span>
+                    <CustomSelect
+                      disabled={isAnalysisLoading}
+                      onChange={(value: string) => {
+                        const nextValue = value as MaterialPricingMode;
+                        setMaterialPricing(nextValue);
+                        rerunAnalysis(selectedProfileId, {
+                          materialPricing: nextValue,
+                        });
+                      }}
+                      options={materialOptions}
+                      value={materialPricing}
+                    />
+                  </div>
+                  <div className="block min-w-0">
+                    <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                      Forged item
+                    </span>
+                    <CustomSelect
+                      disabled={isAnalysisLoading}
+                      onChange={(value: string) => {
+                        const nextValue = value as OutputPricingMode;
+                        setOutputPricing(nextValue);
+                        rerunAnalysis(selectedProfileId, {
+                          outputPricing: nextValue,
+                        });
+                      }}
+                      options={outputOptions}
+                      value={outputPricing}
+                    />
+                  </div>
+                </div>
               </div>
+            </div>
 
-              <div className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
-                  HOTM
-                </span>
-                <CustomSelect
-                  disabled={isAnalysisLoading}
-                  onChange={(value: string) => {
-                    setHotmLevel(value);
-                    rerunAnalysis(selectedProfileId, { hotmLevel: value });
-                  }}
-                  options={hotmOptions}
-                  value={hotmLevel}
-                />
-              </div>
-
-              <div className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
-                  Quick Forge
-                </span>
-                <CustomSelect
-                  disabled={isAnalysisLoading}
-                  onChange={(value: string) => {
-                    setQuickForgeLevel(value);
-                    rerunAnalysis(selectedProfileId, {
-                      quickForgeLevel: value,
-                    });
-                  }}
-                  options={quickForgeOptions}
-                  value={quickForgeLevel}
-                />
-              </div>
-
-              <div className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
-                  Forge slots
-                </span>
-                <CustomSelect
-                  disabled={isAnalysisLoading}
-                  onChange={(value: string) => setSlotCount(value)}
-                  options={slotOptions}
-                  value={slotCount}
-                />
-              </div>
-
-              <label className="block">
-                <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
-                  Target amount
-                </span>
-                <input
-                  className="min-h-[46px] w-full border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm outline-none transition focus:border-[var(--accent)] disabled:cursor-wait disabled:opacity-60"
-                  disabled={isAnalysisLoading}
-                  min={1}
-                  onChange={(event) => setTargetAmount(event.target.value)}
-                  step={1}
-                  type="number"
-                  value={targetAmount}
-                />
-              </label>
-
-              <div className="flex items-end">
-                <label className="flex min-h-[46px] w-full items-center justify-between border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
-                  <span>Include AH</span>
+            <div className="border border-[var(--border)] bg-[var(--panel)]/50 p-4">
+              <span className="mb-3 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+                Options
+              </span>
+              <div className="grid gap-3 lg:grid-cols-3">
+                <label className="flex min-h-[46px] cursor-pointer items-center justify-between gap-3 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
+                  <span className="min-w-0">
+                    <span className="block">Include AH</span>
+                    <span className="mt-0.5 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                      Recalc with auction prices
+                    </span>
+                  </span>
                   <input
                     checked={allowAh}
-                    className="h-4 w-4 accent-[var(--accent)]"
+                    className="h-4 w-4 shrink-0 accent-[var(--accent)]"
                     disabled={isAnalysisLoading}
                     onChange={(event) => {
                       const value = event.target.checked;
@@ -679,14 +716,11 @@ export function HeroQueryForm() {
                     type="checkbox"
                   />
                 </label>
-              </div>
-
-              <div className="flex items-end">
-                <label className="flex min-h-[46px] w-full items-center justify-between gap-4 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
+                <label className="flex min-h-[46px] cursor-pointer items-center justify-between gap-3 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
                   <span className="min-w-0">
                     <span className="block">Hide suspicious items</span>
-                    <span className="mt-1 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
-                      Hide rows above{" "}
+                    <span className="mt-0.5 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                      Above{" "}
                       {Math.round(SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD * 100)}
                       % profit vs mats
                     </span>
@@ -701,16 +735,12 @@ export function HeroQueryForm() {
                     type="checkbox"
                   />
                 </label>
-              </div>
-
-              <div className="flex items-end">
-                <label className="flex min-h-[46px] w-full items-center justify-between gap-4 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
+                <label className="flex min-h-[46px] cursor-pointer items-center justify-between gap-3 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
                   <span className="min-w-0">
                     <span className="block">Hide low forge time</span>
-                    <span className="mt-1 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
-                      Hide rows under{" "}
-                      {Math.round(LOW_FORGE_TIME_THRESHOLD_MS / 60_000)} minutes
-                      of forge chain time
+                    <span className="mt-0.5 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                      Under {Math.round(LOW_FORGE_TIME_THRESHOLD_MS / 60_000)}{" "}
+                      min chain time
                     </span>
                   </span>
                   <input

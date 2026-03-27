@@ -27,7 +27,7 @@ export function ProfilePicker({
 
   return (
     <div className="block">
-      <span className="mb-2 block text-[10px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
+      <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
         Profile
       </span>
       <CustomSelect

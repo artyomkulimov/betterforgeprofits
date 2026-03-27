@@ -54,13 +54,13 @@ function PricingDetailRow({ detail }: { detail: AppliedPriceDetail }) {
       <div className="min-w-0">
         <p className="break-words text-[var(--text-soft)]">{detail.name}</p>
         {detail.matchedId ? (
-          <p className="mt-1 break-all text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+          <p className="mt-1 break-all text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
             Match: {detail.matchedId}
           </p>
         ) : null}
       </div>
       <div>
-        <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
           Qty
         </p>
         <p className="mt-1 text-[var(--text-soft)]">
@@ -68,7 +68,7 @@ function PricingDetailRow({ detail }: { detail: AppliedPriceDetail }) {
         </p>
       </div>
       <div>
-        <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
           Unit
         </p>
         <p className="mt-1 text-[var(--text-soft)]">
@@ -76,7 +76,7 @@ function PricingDetailRow({ detail }: { detail: AppliedPriceDetail }) {
         </p>
       </div>
       <div>
-        <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
           Total
         </p>
         <p className="mt-1 text-[var(--text-soft)]">
@@ -84,7 +84,7 @@ function PricingDetailRow({ detail }: { detail: AppliedPriceDetail }) {
         </p>
       </div>
       <div>
-        <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
           Source
         </p>
         <p className="mt-1 text-[var(--text-soft)] uppercase tracking-[0.12em]">
@@ -95,7 +95,13 @@ function PricingDetailRow({ detail }: { detail: AppliedPriceDetail }) {
   );
 }
 
-export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
+export function CraftPricingPopover({
+  row,
+  panelAlign = "start",
+}: {
+  row: ForgeAnalysisRow;
+  panelAlign?: "start" | "end";
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cardId = useId();
@@ -135,7 +141,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
       <button
         aria-controls={cardId}
         aria-expanded={isOpen}
-        className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/45 px-3 py-1.5 text-[10px] text-[var(--text-soft)] uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50 hover:text-[var(--accent)]"
+        className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/45 px-3 py-1.5 text-[11px] text-[var(--text-soft)] uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50 hover:text-[var(--accent)]"
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
@@ -143,24 +149,24 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
       </button>
       {isOpen ? (
         <div
-          className="absolute top-[calc(100%+0.75rem)] left-0 z-30 w-[min(42rem,calc(100vw-3rem))] border border-[var(--accent)]/30 bg-[var(--panel)]/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-sm"
+          className={`absolute top-[calc(100%+0.75rem)] z-30 w-[min(42rem,calc(100vw-3rem))] border border-[var(--accent)]/30 bg-[var(--panel)]/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-sm ${panelAlign === "end" ? "right-0" : "left-0"}`}
           id={cardId}
           role="dialog"
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] text-[var(--accent)] uppercase tracking-[0.3em]">
+              <p className="text-[11px] text-[var(--accent)] uppercase tracking-[0.3em]">
                 Pricing Used
               </p>
               <h3 className="mt-2 font-[family-name:var(--font-atlas-serif)] text-2xl text-[var(--text-main)]">
                 {row.name}
               </h3>
-              <p className="mt-2 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
+              <p className="mt-2 text-[12px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                 One craft · current route calculation
               </p>
             </div>
             <button
-              className="text-[var(--text-faint)] text-xs uppercase tracking-[0.22em] transition hover:text-[var(--accent)]"
+              className="text-[var(--text-faint)] text-sm uppercase tracking-[0.22em] transition hover:text-[var(--accent)]"
               onClick={() => setIsOpen(false)}
               type="button"
             >
@@ -169,25 +175,25 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
           </div>
 
           {row.usesAhPricing ? (
-            <div className="mt-4 border border-[var(--accent)]/25 bg-[var(--bg)]/35 px-3 py-2 text-[11px] text-[var(--text-soft)] uppercase tracking-[0.18em]">
+            <div className="mt-4 border border-[var(--accent)]/25 bg-[var(--bg)]/35 px-3 py-2 text-[12px] text-[var(--text-soft)] uppercase tracking-[0.18em]">
               Auction pricing was used for at least part of this craft.
             </div>
           ) : null}
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="border border-[var(--border)] bg-[var(--bg)]/35 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Output Unit Price
               </p>
               <p className="mt-2 text-[var(--text-main)] text-lg">
                 {formatCoins(row.outputPriceDetail?.unitPrice ?? null)}
               </p>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
+              <p className="mt-1 text-[11px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
                 {row.outputPriceDetail?.source ?? "Unavailable"}
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/35 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Base Mats
               </p>
               <p className="mt-2 text-[var(--text-main)] text-lg">
@@ -195,7 +201,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/35 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Profit / Craft
               </p>
               <p className="mt-2 text-[var(--text-main)] text-lg">
@@ -203,7 +209,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/35 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Profit / Hr
               </p>
               <p className="mt-2 text-[var(--text-main)] text-lg">
@@ -214,7 +220,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Material Mode
               </p>
               <p className="mt-2 text-[var(--text-soft)] uppercase tracking-[0.14em]">
@@ -222,7 +228,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Output Total
               </p>
               <p className="mt-2 text-[var(--text-soft)]">
@@ -230,7 +236,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Output Mode
               </p>
               <p className="mt-2 text-[var(--text-soft)] uppercase tracking-[0.14em]">
@@ -238,7 +244,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Top-Level Forge Time
               </p>
               <p className="mt-2 text-[var(--text-soft)]">
@@ -246,7 +252,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Forge Chain Time
               </p>
               <p className="mt-2 text-[var(--text-soft)]">
@@ -254,7 +260,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3 sm:col-span-2 xl:col-span-1">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Output Match
               </p>
               <p className="mt-2 break-all text-[var(--text-soft)] text-sm">
@@ -262,7 +268,7 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
               </p>
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Coverage
               </p>
               <p className="mt-2 text-[var(--text-soft)] uppercase tracking-[0.14em]">
@@ -273,10 +279,10 @@ export function CraftPricingPopover({ row }: { row: ForgeAnalysisRow }) {
 
           <div className="mt-5">
             <div className="flex items-center justify-between gap-4">
-              <p className="text-[10px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
+              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
                 Raw Material Prices
               </p>
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
+              <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-[0.18em]">
                 Current craft only
               </p>
             </div>

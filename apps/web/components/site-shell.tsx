@@ -17,7 +17,7 @@ export function SiteShell({ children }: SiteShellProps) {
 
       <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 pt-10">
         <div>
-          <p className="font-medium text-[var(--accent)] text-sm tracking-[0.35em]">
+          <p className="font-medium text-[var(--accent)] text-base tracking-[0.35em]">
             FROGE
           </p>
         </div>

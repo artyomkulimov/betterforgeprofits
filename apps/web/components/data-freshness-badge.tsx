@@ -22,15 +22,26 @@ export function DataFreshnessBadge({
   label: string;
   timestamp: number | null;
 }) {
+  const ageMinutes =
+    ageSeconds !== null && ageSeconds !== undefined
+      ? Math.max(0, Math.round(ageSeconds / 60))
+      : null;
+
   return (
-    <span className="rounded-sm border border-[var(--border)] bg-[var(--bg)]/70 px-3 py-2 text-[11px] text-[var(--text-muted)] uppercase tracking-[0.2em]">
-      {label}:{" "}
-      <span className="text-[var(--text-soft)]">
-        {formatStamp(timestamp)}
-        {ageSeconds !== null && ageSeconds !== undefined
-          ? ` · ${Math.max(0, Math.round(ageSeconds / 60))}m old`
-          : ""}
-      </span>
-    </span>
+    <div className="flex items-start justify-between gap-4 py-4 first:pt-1 last:pb-1">
+      <div className="min-w-0 border-[var(--accent)]/35 border-l-2 pl-3">
+        <p className="font-semibold text-[11px] text-[var(--accent)] uppercase tracking-[0.28em]">
+          {label}
+        </p>
+        <p className="mt-2 text-[var(--text-soft)] text-base tabular-nums tracking-tight">
+          {formatStamp(timestamp)}
+        </p>
+      </div>
+      {ageMinutes === null ? null : (
+        <span className="mt-0.5 shrink-0 rounded-full border border-[var(--accent)]/30 bg-[var(--bg)]/50 px-2.5 py-1 text-[11px] text-[var(--accent-soft)] uppercase tracking-[0.18em]">
+          {ageMinutes}m ago
+        </span>
+      )}
+    </div>
   );
 }

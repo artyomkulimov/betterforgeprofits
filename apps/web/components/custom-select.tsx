@@ -75,7 +75,7 @@ export function CustomSelect({
           {selected?.label ?? placeholder ?? "Select an option"}
         </span>
         <span
-          className={`text-[10px] text-[var(--accent)] uppercase tracking-[0.24em] transition ${open ? "rotate-180" : ""}`}
+          className={`text-[11px] text-[var(--accent)] uppercase tracking-[0.24em] transition ${open ? "rotate-180" : ""}`}
         >
           ▾
         </span>
@@ -111,7 +111,7 @@ export function CustomSelect({
                     {option.label}
                   </span>
                   {active ? (
-                    <span className="pt-0.5 text-[10px] text-[var(--accent)] uppercase tracking-[0.24em]">
+                    <span className="pt-0.5 text-[11px] text-[var(--accent)] uppercase tracking-[0.24em]">
                       Live
                     </span>
                   ) : null}

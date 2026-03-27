@@ -56,7 +56,7 @@ function BreakdownTabButton({
     <button
       aria-controls={controls}
       aria-pressed={isActive}
-      className={`border px-3 py-2 text-[10px] uppercase tracking-[0.22em] transition ${
+      className={`border px-3 py-2 text-[11px] uppercase tracking-[0.22em] transition ${
         isActive
           ? "border-[var(--accent)]/40 bg-[var(--panel)]/70 text-[var(--accent)]"
           : "border-[var(--border)] bg-[var(--bg)]/35 text-[var(--text-faint)] hover:border-[var(--accent)]/30 hover:text-[var(--text-soft)]"
@@ -84,9 +84,9 @@ export function RecipeCostBreakdown({
 
   return (
     <details className="group">
-      <summary className="flex cursor-pointer list-none items-center justify-between border border-[var(--border)] bg-[var(--bg)]/45 px-4 py-3 text-[var(--accent)] text-xs uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50">
+      <summary className="flex cursor-pointer list-none items-center justify-between border border-[var(--border)] bg-[var(--bg)]/45 px-4 py-3 text-[var(--accent)] text-sm uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50">
         <span>Material breakdown</span>
-        <span className="text-[10px] text-[var(--text-faint)] tracking-[0.24em] transition group-open:rotate-180">
+        <span className="text-[11px] text-[var(--text-faint)] tracking-[0.24em] transition group-open:rotate-180">
           ▾
         </span>
       </summary>
@@ -112,7 +112,7 @@ export function RecipeCostBreakdown({
         </div>
 
         <div hidden={activeTab !== "craft_tree"} id={treePanelId}>
-          <div className="mb-3 text-[10px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+          <div className="mb-3 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
             Batch-scaled to{" "}
             {new Intl.NumberFormat("en-US").format(craftsNeeded)} craft
             {craftsNeeded === 1 ? "" : "s"}

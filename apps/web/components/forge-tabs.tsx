@@ -22,11 +22,11 @@ export function ForgeTabs({
             onClick={() => onChange(tab.id)}
             type="button"
           >
-            <span className="block font-semibold text-sm tracking-wide">
+            <span className="block font-semibold text-base tracking-wide">
               {tab.label}
             </span>
             <span
-              className={`mt-1 block text-xs ${active ? "text-[var(--bg)]/75" : "text-[var(--text-faint)]"}`}
+              className={`mt-1 block text-sm ${active ? "text-[var(--bg)]/75" : "text-[var(--text-faint)]"}`}
             >
               {tab.description}
             </span>
