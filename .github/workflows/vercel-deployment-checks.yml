@@ -23,7 +23,7 @@ jobs:
         if: ${{ always() }}
         uses: vercel/repository-dispatch/actions/status@v1
         with:
-          name: Vercel - betterforgeprofits-web: lint
+          name: "Vercel - betterforgeprofits-web: lint"
 
   test:
     if: ${{ github.event.client_payload.environment == 'production' }}
@@ -39,4 +39,4 @@ jobs:
         if: ${{ always() }}
         uses: vercel/repository-dispatch/actions/status@v1
         with:
-          name: Vercel - betterforgeprofits-web: test
+          name: "Vercel - betterforgeprofits-web: test"
