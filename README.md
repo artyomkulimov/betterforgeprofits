@@ -23,6 +23,9 @@ Monorepo for the BetterForgeProfits web app, Postgres-backed pricing cache, and 
 - `HYPIXEL_API_KEY`
 - `DATABASE_URL`
 
+For local web development, copy `apps/web/.env.example` to `apps/web/.env.local` and fill in your own values.
+Do not commit, paste, or screenshot real credentials. If a real key or connection string is exposed anywhere outside your machine, rotate it immediately.
+
 ## Deployment Notes
 
 - The web app is designed to run as a stateless Next.js deployment.
@@ -67,6 +70,8 @@ Set:
 HYPIXEL_API_KEY=your-hypixel-key
 DATABASE_URL=your-supabase-postgres-connection-string
 ```
+
+Keep this file machine-local. Do not commit it, send it in chat, or reuse production credentials on shared machines.
 
 ### 5. Test one manual sync
 

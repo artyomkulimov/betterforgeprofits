@@ -15,6 +15,21 @@ import { NextResponse } from "next/server";
 
 import { getSkyBlockProfiles } from "@/lib/api/hypixel";
 import { resolveMinecraftUsername } from "@/lib/api/mojang";
+import {
+  AppError,
+  badRequest,
+  errorResponse,
+  internalError,
+  notFound,
+} from "@/lib/server-errors";
+import {
+  applyRateLimit,
+  getCached,
+  getRateLimitHeaders,
+  normalizeUsername,
+  parseBoundedInteger,
+  validateMinecraftUsername,
+} from "@/lib/server-security";
 
 function roundDuration(durationMs: number): number {
   return Math.round(durationMs * 100) / 100;
@@ -60,13 +75,29 @@ function parseAnalysisRequest(request: Request) {
       : "sell_offer";
 
   return {
-    username: searchParams.get("username")?.trim() ?? "",
+    username: validateMinecraftUsername(
+      normalizeUsername(searchParams.get("username"))
+    ),
     requestedProfileId: searchParams.get("profileId")?.trim() ?? "",
     materialPricing,
     outputPricing,
     allowAh: searchParams.get("allowAh") === "true",
-    hotmOverride: Number(searchParams.get("hotmOverride")),
-    quickForgeOverride: Number(searchParams.get("quickForgeOverride")),
+    hotmOverride: parseBoundedInteger(
+      searchParams.get("hotmOverride"),
+      "hotmOverride",
+      {
+        min: 0,
+        max: 10,
+      }
+    ),
+    quickForgeOverride: parseBoundedInteger(
+      searchParams.get("quickForgeOverride"),
+      "quickForgeOverride",
+      {
+        min: 0,
+        max: 20,
+      }
+    ),
   };
 }
 
@@ -76,6 +107,11 @@ export async function GET(request: Request) {
   const debugAnalysis = process.env.DEBUG_FORGE_ANALYSIS === "true";
 
   try {
+    const rateLimit = applyRateLimit(request, {
+      namespace: "forge-analysis",
+      limit: 10,
+      windowMs: 60_000,
+    });
     const {
       allowAh,
       hotmOverride,
@@ -91,132 +127,153 @@ export async function GET(request: Request) {
       materialPricing,
       outputPricing,
       requestedProfile: Boolean(requestedProfileId),
-      username,
+      usernameLength: username.length,
     });
 
-    if (!username) {
-      logAnalysisEvent("request_rejected", requestId, {
-        durationMs: roundDuration(performance.now() - requestStartedAt),
-        reason: "missing_username",
-      });
-      return NextResponse.json(
-        { error: "Username is required." },
-        { status: 400 }
-      );
-    }
+    const analysisCacheKey = [
+      "analysis",
+      username.toLowerCase(),
+      requestedProfileId || "default",
+      materialPricing,
+      outputPricing,
+      String(allowAh),
+      hotmOverride ?? "profile",
+      quickForgeOverride ?? "profile",
+    ].join(":");
 
-    const { result: player } = await measureAsync(
-      "username_resolved",
-      requestId,
-      () => resolveMinecraftUsername(username),
-      { username }
+    const analysisPayload = await getCached(
+      analysisCacheKey,
+      30_000,
+      async () => {
+        const { result: player } = await measureAsync(
+          "username_resolved",
+          requestId,
+          () => resolveMinecraftUsername(username),
+          { usernameLength: username.length }
+        );
+        const { result: payload } = await measureAsync(
+          "profiles_fetched",
+          requestId,
+          () => getSkyBlockProfiles(player.uuid),
+          { usernameLength: username.length }
+        );
+        const profiles = payload.profiles ?? [];
+
+        if (profiles.length === 0) {
+          throw notFound("This player has no accessible SkyBlock profiles.");
+        }
+
+        const summaries = summarizeProfiles(profiles, player.uuid);
+        const fallback = selectDefaultProfile(summaries);
+        const profileId = requestedProfileId || fallback?.profileId;
+
+        if (!profileId) {
+          throw notFound(
+            "No usable SkyBlock profile was found for this player."
+          );
+        }
+
+        if (!summaries.some((summary) => summary.profileId === profileId)) {
+          throw badRequest("profileId does not belong to this player.");
+        }
+
+        logAnalysisEvent("profile_selected", requestId, {
+          fallbackProfileId: fallback?.profileId ?? null,
+          profileCount: summaries.length,
+          selectedProfileId: profileId,
+        });
+
+        const dbRepository = new PostgresPriceRepository();
+        const { result: snapshot, durationMs: measuredPreloadDurationMs } =
+          await measureAsync("pricing_snapshot_preloaded", requestId, () =>
+            dbRepository.preloadCurrentPricing()
+          );
+        const requestRepository = new InMemoryPriceRepository(snapshot);
+        const recipeTimings: Array<{
+          durationMs: number;
+          name: string;
+          priceCoverage: string;
+          profitPerCraft: number | null;
+          recipeId: string;
+        }> = [];
+
+        const { result: analysisResult } = await measureAsync(
+          "analysis_completed",
+          requestId,
+          () =>
+            analyzeForge({
+              profileId,
+              profiles,
+              playerUuid: player.uuid,
+              priceRepository: requestRepository,
+              materialPricing,
+              outputPricing,
+              allowAh,
+              hotmOverride,
+              quickForgeOverride,
+              onRecipeTiming: (timing) => {
+                if (debugAnalysis) {
+                  recipeTimings.push(timing);
+                }
+              },
+            })
+        );
+
+        if (debugAnalysis) {
+          const slowestRecipes = [...recipeTimings]
+            .sort((left, right) => right.durationMs - left.durationMs)
+            .slice(0, 5)
+            .map((timing) => ({
+              recipeId: timing.recipeId,
+              name: timing.name,
+              durationMs: timing.durationMs,
+              priceCoverage: timing.priceCoverage,
+              profitPerCraft: timing.profitPerCraft,
+            }));
+
+          logAnalysisEvent("debug_recipe_timings", requestId, {
+            eligibleRecipes: recipeTimings.length,
+            slowestRecipes,
+          });
+        }
+
+        return {
+          preloadDurationMs: measuredPreloadDurationMs,
+          requestStats: requestRepository.getRequestStats(),
+          result: analysisResult,
+        };
+      }
     );
-    const { result: payload } = await measureAsync(
-      "profiles_fetched",
-      requestId,
-      () => getSkyBlockProfiles(player.uuid),
-      { username }
-    );
-    const profiles = payload.profiles ?? [];
 
-    if (profiles.length === 0) {
-      throw new Error("This player has no accessible SkyBlock profiles.");
-    }
-
-    const summaries = summarizeProfiles(profiles, player.uuid);
-    const fallback = selectDefaultProfile(summaries);
-    const profileId = requestedProfileId || fallback?.profileId;
-
-    if (!profileId) {
-      throw new Error("No usable SkyBlock profile was found for this player.");
-    }
-
-    logAnalysisEvent("profile_selected", requestId, {
-      fallbackProfileId: fallback?.profileId ?? null,
-      profileCount: summaries.length,
-      selectedProfileId: profileId,
-    });
-
-    const dbRepository = new PostgresPriceRepository();
-    const { result: snapshot, durationMs: preloadDurationMs } =
-      await measureAsync("pricing_snapshot_preloaded", requestId, () =>
-        dbRepository.preloadCurrentPricing()
-      );
-    const requestRepository = new InMemoryPriceRepository(snapshot);
-    const recipeTimings: Array<{
-      durationMs: number;
-      name: string;
-      priceCoverage: string;
-      profitPerCraft: number | null;
-      recipeId: string;
-    }> = [];
-
-    const { result } = await measureAsync("analysis_completed", requestId, () =>
-      analyzeForge({
-        profileId,
-        profiles,
-        playerUuid: player.uuid,
-        priceRepository: requestRepository,
-        materialPricing,
-        outputPricing,
-        allowAh,
-        hotmOverride: Number.isNaN(hotmOverride) ? null : hotmOverride,
-        quickForgeOverride: Number.isNaN(quickForgeOverride)
-          ? null
-          : quickForgeOverride,
-        onRecipeTiming: (timing) => {
-          if (debugAnalysis) {
-            recipeTimings.push(timing);
-          }
-        },
-      })
-    );
-
-    const requestStats = requestRepository.getRequestStats();
     const totalDurationMs = roundDuration(performance.now() - requestStartedAt);
 
     logAnalysisEvent("request_completed", requestId, {
       totalDurationMs,
-      preloadDurationMs,
-      returnedRows: result.rows.length,
-      snapshotAgeSeconds: result.pricingMeta.snapshotAgeSeconds,
-      ...requestStats,
+      preloadDurationMs: analysisPayload.preloadDurationMs,
+      returnedRows: analysisPayload.result.rows.length,
+      snapshotAgeSeconds: analysisPayload.result.pricingMeta.snapshotAgeSeconds,
+      ...analysisPayload.requestStats,
     });
 
-    if (debugAnalysis) {
-      const slowestRecipes = [...recipeTimings]
-        .sort((left, right) => right.durationMs - left.durationMs)
-        .slice(0, 5)
-        .map((timing) => ({
-          recipeId: timing.recipeId,
-          name: timing.name,
-          durationMs: timing.durationMs,
-          priceCoverage: timing.priceCoverage,
-          profitPerCraft: timing.profitPerCraft,
-        }));
-
-      logAnalysisEvent("debug_recipe_timings", requestId, {
-        eligibleRecipes: recipeTimings.length,
-        slowestRecipes,
-      });
-    }
-
-    return NextResponse.json(result);
+    return NextResponse.json(analysisPayload.result, {
+      headers: getRateLimitHeaders(rateLimit),
+    });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to analyze forge data.";
-    const status =
-      message === "This player has no accessible SkyBlock profiles." ||
-      message === "No usable SkyBlock profile was found for this player."
-        ? 404
-        : 500;
-
+    const handledError =
+      error instanceof Error ? error : internalError(undefined, error);
     logAnalysisEvent("request_failed", requestId, {
       durationMs: roundDuration(performance.now() - requestStartedAt),
-      message,
-      status,
+      errorName: handledError.name,
     });
 
-    return NextResponse.json({ error: message }, { status });
+    if (handledError instanceof AppError) {
+      if (handledError.cause) {
+        console.error("[forge-analysis] request failed", handledError.cause);
+      }
+      return errorResponse(handledError);
+    }
+
+    console.error("[forge-analysis] unexpected error", error);
+    return errorResponse(internalError(undefined, error));
   }
 }

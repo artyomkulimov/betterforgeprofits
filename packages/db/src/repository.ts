@@ -17,6 +17,15 @@ import {
   priceSources,
 } from "./schema";
 
+interface SnapshotCacheEntry {
+  expiresAt: number;
+  value: Promise<CurrentPricingSnapshot>;
+}
+
+const globalSnapshotCache = globalThis as typeof globalThis & {
+  __frogePricingSnapshot?: SnapshotCacheEntry;
+};
+
 function buildDisplayVariants(name: string): string[] {
   const normalized = normalizeItemName(name);
   return Array.from(
@@ -219,7 +228,7 @@ export class InMemoryPriceRepository implements PriceRepository {
 }
 
 export class PostgresPriceRepository implements PriceRepository {
-  async preloadCurrentPricing(): Promise<CurrentPricingSnapshot> {
+  private async fetchCurrentPricing(): Promise<CurrentPricingSnapshot> {
     const db = getDb();
 
     const [sourceRows, aliases, bazaar, auction] = await Promise.all([
@@ -259,6 +268,30 @@ export class PostgresPriceRepository implements PriceRepository {
       auction,
       freshnessMeta: buildFreshnessMeta(sourceRows),
     };
+  }
+
+  async preloadCurrentPricing(): Promise<CurrentPricingSnapshot> {
+    const now = Date.now();
+    const existing = globalSnapshotCache.__frogePricingSnapshot;
+
+    if (existing && existing.expiresAt > now) {
+      return existing.value;
+    }
+
+    const value = this.fetchCurrentPricing();
+    globalSnapshotCache.__frogePricingSnapshot = {
+      expiresAt: now + 30_000,
+      value,
+    };
+
+    try {
+      return await value;
+    } catch (error) {
+      if (globalSnapshotCache.__frogePricingSnapshot?.value === value) {
+        globalSnapshotCache.__frogePricingSnapshot = undefined;
+      }
+      throw error;
+    }
   }
 
   async getBazaarQuoteByName(

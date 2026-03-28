@@ -6,19 +6,31 @@ import { quickForgeReductionForLevel } from "@betterforgeprofits/forge-core/hotm
 import { NextResponse } from "next/server";
 import { getSkyBlockProfiles } from "@/lib/api/hypixel";
 import { resolveMinecraftUsername } from "@/lib/api/mojang";
-import { getCached } from "@/lib/server-cache";
+import {
+  AppError,
+  errorResponse,
+  internalError,
+  notFound,
+} from "@/lib/server-errors";
+import {
+  applyRateLimit,
+  getCached,
+  getRateLimitHeaders,
+  normalizeUsername,
+  validateMinecraftUsername,
+} from "@/lib/server-security";
 
 export async function GET(request: Request) {
   try {
+    const rateLimit = applyRateLimit(request, {
+      namespace: "skyblock-context",
+      limit: 20,
+      windowMs: 60_000,
+    });
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get("username")?.trim() ?? "";
-
-    if (!username) {
-      return NextResponse.json(
-        { error: "Username is required." },
-        { status: 400 }
-      );
-    }
+    const username = validateMinecraftUsername(
+      normalizeUsername(searchParams.get("username"))
+    );
 
     const result = await getCached(
       `profiles:${username.toLowerCase()}`,
@@ -36,38 +48,46 @@ export async function GET(request: Request) {
     const { player, profiles } = result;
 
     if (profiles.length === 0) {
-      return NextResponse.json(
-        { error: "This player has no accessible SkyBlock profiles." },
-        { status: 404 }
-      );
+      throw notFound("This player has no accessible SkyBlock profiles.");
     }
 
     const profileSummaries = summarizeProfiles(profiles, player.uuid);
     const selectedProfile = selectDefaultProfile(profileSummaries);
 
     if (!selectedProfile) {
-      return NextResponse.json(
-        { error: "No usable SkyBlock profile was found for this player." },
-        { status: 404 }
-      );
+      throw notFound("No usable SkyBlock profile was found for this player.");
     }
 
-    return NextResponse.json({
-      player,
-      profiles: profileSummaries,
-      selectedProfileId: selectedProfile.profileId,
-      profile: {
-        ...selectedProfile,
-        quickForgeReduction: quickForgeReductionForLevel(
-          selectedProfile.quickForgeLevel
-        ),
+    return NextResponse.json(
+      {
+        player,
+        profiles: profileSummaries,
+        selectedProfileId: selectedProfile.profileId,
+        profile: {
+          ...selectedProfile,
+          quickForgeReduction: quickForgeReductionForLevel(
+            selectedProfile.quickForgeLevel
+          ),
+        },
       },
-    });
+      {
+        headers: getRateLimitHeaders(rateLimit),
+      }
+    );
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch profile context.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (!(error instanceof Error)) {
+      console.error("[skyblock-context] unexpected error", error);
+      return errorResponse(internalError(undefined, error));
+    }
+
+    if (error instanceof AppError) {
+      if (error.cause) {
+        console.error("[skyblock-context] request failed", error.cause);
+      }
+      return errorResponse(error);
+    }
+
+    console.error("[skyblock-context] unexpected error", error);
+    return errorResponse(internalError(undefined, error));
   }
 }

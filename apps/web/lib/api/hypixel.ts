@@ -1,9 +1,14 @@
+import { upstreamUnavailable } from "@/lib/server-errors";
+
 const HYPIXEL_BASE_URL = "https://api.hypixel.net";
 
 function getApiKey(): string {
   const key = process.env.HYPIXEL_API_KEY;
   if (!key) {
-    throw new Error("Missing HYPIXEL_API_KEY environment variable.");
+    throw upstreamUnavailable("Service configuration is unavailable.", {
+      service: "hypixel",
+      reason: "missing_api_key",
+    });
   }
   return key;
 }
@@ -25,7 +30,11 @@ async function hypixelFetch<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Hypixel request failed with status ${response.status}.`);
+    throw upstreamUnavailable("SkyBlock data is temporarily unavailable.", {
+      path,
+      service: "hypixel",
+      status: response.status,
+    });
   }
 
   const payload = (await response.json()) as {
@@ -33,7 +42,11 @@ async function hypixelFetch<T>(
     cause?: string;
   };
   if (payload.success === false) {
-    throw new Error(payload.cause || "Hypixel request failed.");
+    throw upstreamUnavailable("SkyBlock data is temporarily unavailable.", {
+      cause: payload.cause,
+      path,
+      service: "hypixel",
+    });
   }
 
   return payload as T;

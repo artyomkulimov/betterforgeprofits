@@ -12,5 +12,6 @@ guide/
 apps/web/.env.local
 .DS_Store
 *.tsbuildinfo
+coverage/
 sourcewiki.html
 wiki.hypixel.net/

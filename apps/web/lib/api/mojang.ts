@@ -1,3 +1,5 @@
+import { notFound, upstreamUnavailable } from "@/lib/server-errors";
+
 const MOJANG_BASE_URL = "https://api.mojang.com";
 
 export async function resolveMinecraftUsername(username: string) {
@@ -14,11 +16,17 @@ export async function resolveMinecraftUsername(username: string) {
   );
 
   if (response.status === 404) {
-    throw new Error("Minecraft username not found.");
+    throw notFound("Minecraft username not found.");
   }
 
   if (!response.ok) {
-    throw new Error("Failed to resolve Minecraft username.");
+    throw upstreamUnavailable(
+      "Minecraft account lookup is temporarily unavailable.",
+      {
+        service: "mojang",
+        status: response.status,
+      }
+    );
   }
 
   const payload = (await response.json()) as { id: string; name: string };
