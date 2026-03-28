@@ -1,6 +1,11 @@
 # BetterForgeProfits
 
-Monorepo for the BetterForgeProfits web app, Postgres-backed pricing cache, and scheduled Hypixel sync worker.
+Monorepo for Better Forge, the BetterForgeProfits web app/workspace.
+
+Public product name: `Better Forge`
+Repo/package/deploy slug: `betterforgeprofits`
+
+This repo keeps the existing `betterforgeprofits` slug for package names, paths, Docker image tags, and deployment references.
 
 ## Workspace Layout
 

@@ -226,8 +226,8 @@ describe("HeroQueryForm", () => {
     expect(fetchMock.mock.calls[1]?.[0]).toContain(
       "/api/forge/analysis?username=Notch"
     );
-    expect(window.localStorage.getItem("froge_recent_players")).toContain(
-      "Notch"
-    );
+    expect(
+      window.localStorage.getItem("better_forge_recent_players")
+    ).toContain("Notch");
   });
 });

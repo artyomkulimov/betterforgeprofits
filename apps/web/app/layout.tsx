@@ -15,8 +15,9 @@ const sans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Froge",
-  description: "Single-page Hypixel SkyBlock forge profit helper.",
+  title: "Better Forge",
+  description:
+    "Better Forge is a single-page Hypixel SkyBlock forge profit helper.",
 };
 
 export default function RootLayout({

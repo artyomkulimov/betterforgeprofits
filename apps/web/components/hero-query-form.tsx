@@ -31,7 +31,7 @@ interface ProfilesPayload {
   selectedProfileId: string;
 }
 
-const RECENT_PLAYERS_KEY = "froge_recent_players";
+const RECENT_PLAYERS_KEY = "better_forge_recent_players";
 const MAX_RECENT_PLAYERS = 6;
 const clientProfilesCache = new Map<string, ProfilesPayload>();
 
