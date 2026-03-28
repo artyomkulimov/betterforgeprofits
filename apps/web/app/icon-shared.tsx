@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const appDir = path.dirname(fileURLToPath(import.meta.url));
 const itemPath = path.join(
-  process.cwd(),
-  "apps/web/public/forge-assets/SkyBlock_items_titanium_tesseract.png"
+  appDir,
+  "../public/forge-assets/SkyBlock_items_titanium_tesseract.png"
 );
 
 async function getItemDataUrl() {
