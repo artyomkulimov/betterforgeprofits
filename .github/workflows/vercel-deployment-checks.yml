@@ -1,0 +1,42 @@
+name: Vercel Deployment Checks
+
+on:
+  repository_dispatch:
+    types:
+      - vercel.deployment.ready
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  lint:
+    if: ${{ github.event.client_payload.environment == 'production' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vercel/repository-dispatch/actions/checkout@v1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - name: Notify Vercel
+        if: ${{ always() }}
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: Vercel - betterforgeprofits-web: lint
+
+  test:
+    if: ${{ github.event.client_payload.environment == 'production' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vercel/repository-dispatch/actions/checkout@v1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+      - name: Notify Vercel
+        if: ${{ always() }}
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: Vercel - betterforgeprofits-web: test
