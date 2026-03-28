@@ -158,7 +158,7 @@ export function HeroQueryForm() {
   const [showAnalysisUpdatedToast, setShowAnalysisUpdatedToast] =
     useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("profit_per_hour");
-  const [allowAh, setAllowAh] = useState(true);
+  const [allowAh, setAllowAh] = useState(false);
   const [showSimpleCraftsOnly, setShowSimpleCraftsOnly] = useState(false);
   const [hideLowForgeTimeItems, setHideLowForgeTimeItems] = useState(false);
   const [hideSuspiciousItems, setHideSuspiciousItems] = useState(false);
@@ -286,7 +286,7 @@ export function HeroQueryForm() {
       isProfileLoading,
       isAnalysisLoading,
       error,
-      backendRowCount: analysis?.rows.length ?? 0,
+      backendRowCount: analysis?.rows?.length ?? 0,
       deferredRowCount: deferredRows.length,
       visibleRowCount: visibleRows.length,
       displayRowCount: displayRows.length,
@@ -807,8 +807,8 @@ export function HeroQueryForm() {
                   <span className="min-w-0">
                     <span className="block">Simple crafts only</span>
                     <span className="mt-0.5 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
-                      At most {SIMPLE_CRAFT_MAX_PREVIOUS_STEPS} previous forge
-                      step
+                      At most {SIMPLE_CRAFT_MAX_PREVIOUS_STEPS} direct forge
+                      step and no deep forge chains
                     </span>
                   </span>
                   <input

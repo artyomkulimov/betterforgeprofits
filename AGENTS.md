@@ -1,7 +1,6 @@
 # Repository Instructions
 
 - Use Bun for package management and script execution. Never use `npm`, `npx`, `pnpm`, or `yarn`.
-- Prefer `bun run`, `bun add`, `bun remove`, and `bunx`.
 - Use Ultracite as the lint/format checker for this repo.
 - Run `bun run lint` for checks and `bun run fix` to apply Ultracite fixes.
 - Use Conventional Commits for all git commit messages.

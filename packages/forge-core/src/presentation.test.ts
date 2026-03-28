@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getDirectForgeDependencyCount,
   getForgeBatchMetrics,
   getPreviousForgeStepDepth,
   isLowForgeTimeRow,
@@ -138,8 +139,8 @@ describe("presentation", () => {
     ).toBe(true);
   });
 
-  it("computes previous forge step depth and simple craft detection", () => {
-    const simpleRow = createRow({}, [
+  it("treats rows with no forge dependencies as simple", () => {
+    const row = createRow({}, [
       {
         children: [],
         effectiveForgeDurationMs: null,
@@ -156,7 +157,88 @@ describe("presentation", () => {
       },
     ]);
 
-    const complexRow = createRow({}, [
+    expect(getDirectForgeDependencyCount(row)).toBe(0);
+    expect(getPreviousForgeStepDepth(row)).toBe(0);
+    expect(isSimpleForgeRow(row)).toBe(true);
+  });
+
+  it("treats a single shallow forge dependency as simple", () => {
+    const row = createRow({}, [
+      {
+        children: [
+          {
+            children: [],
+            effectiveForgeDurationMs: null,
+            forgeDurationMs: null,
+            isCraftable: false,
+            itemId: "RAW",
+            kind: "item",
+            leafPriceDetail: null,
+            name: "Raw",
+            nodeId: "raw",
+            quantity: 1,
+            recipeId: null,
+            subtotalCost: 10,
+          },
+        ],
+        effectiveForgeDurationMs: null,
+        forgeDurationMs: null,
+        isCraftable: true,
+        itemId: "TOP",
+        kind: "item",
+        leafPriceDetail: null,
+        name: "Top",
+        nodeId: "top",
+        quantity: 1,
+        recipeId: "top",
+        subtotalCost: 20,
+      },
+    ]);
+
+    expect(getDirectForgeDependencyCount(row)).toBe(1);
+    expect(getPreviousForgeStepDepth(row)).toBe(1);
+    expect(isSimpleForgeRow(row)).toBe(true);
+  });
+
+  it("treats multiple direct forge dependencies as complex", () => {
+    const row = createRow({}, [
+      {
+        children: [],
+        effectiveForgeDurationMs: null,
+        forgeDurationMs: null,
+        isCraftable: true,
+        itemId: "TOP_A",
+        kind: "item",
+        leafPriceDetail: null,
+        name: "Top A",
+        nodeId: "top-a",
+        quantity: 1,
+        recipeId: "top-a",
+        subtotalCost: 20,
+      },
+      {
+        children: [],
+        effectiveForgeDurationMs: null,
+        forgeDurationMs: null,
+        isCraftable: true,
+        itemId: "TOP_B",
+        kind: "item",
+        leafPriceDetail: null,
+        name: "Top B",
+        nodeId: "top-b",
+        quantity: 1,
+        recipeId: "top-b",
+        subtotalCost: 30,
+      },
+    ]);
+
+    expect(getDirectForgeDependencyCount(row)).toBe(2);
+    expect(getPreviousForgeStepDepth(row)).toBe(1);
+    expect(isSimpleForgeRow(row)).toBe(false);
+  });
+
+  it("treats a deeper forge chain as complex", () => {
+    const row = createRow({}, [
       {
         children: [
           {
@@ -188,9 +270,8 @@ describe("presentation", () => {
       },
     ]);
 
-    expect(getPreviousForgeStepDepth(simpleRow)).toBe(0);
-    expect(isSimpleForgeRow(simpleRow)).toBe(true);
-    expect(getPreviousForgeStepDepth(complexRow)).toBe(2);
-    expect(isSimpleForgeRow(complexRow)).toBe(false);
+    expect(getDirectForgeDependencyCount(row)).toBe(1);
+    expect(getPreviousForgeStepDepth(row)).toBe(2);
+    expect(isSimpleForgeRow(row)).toBe(false);
   });
 });

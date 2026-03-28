@@ -105,6 +105,7 @@ vi.mock("@/components/profile-summary", () => ({
 }));
 
 const fetchMock = vi.fn<typeof fetch>();
+const INCLUDE_AH_LABEL = /include ah/i;
 
 function createProfileSummary(): ForgeProfileSummary {
   return {
@@ -153,6 +154,73 @@ function createAnalysisResponse(): ForgeAnalysisResponse {
         recursiveBaseDurationMs: 60_000,
         recursiveEffectiveDurationMs: 60_000,
         usesAhPricing: false,
+      },
+    ],
+  };
+}
+
+function createAhAnalysisResponse(): ForgeAnalysisResponse {
+  return {
+    pricingMeta: {
+      auctionSnapshotFetchedAt: 1,
+      bazaarSnapshotFetchedAt: 1,
+      snapshotAgeSeconds: 0,
+    },
+    profile: createProfileSummary(),
+    rows: [
+      {
+        baseDurationMs: 60_000,
+        baseMaterialCost: 100,
+        category: "Forging",
+        craftTree: [],
+        effectiveDurationMs: 60_000,
+        hasForgeDependencies: false,
+        hotmRequired: null,
+        materialPriceDetails: [],
+        materialPricingMode: "instant_buy",
+        name: "Bazaar Item",
+        otherRequirements: [],
+        outputCount: 1,
+        outputPrice: { matchedId: "A", source: "bazaar", unitPrice: 150 },
+        outputPriceDetail: null,
+        outputPricingMode: "sell_offer",
+        priceCoverage: "complete",
+        profitPerCraft: 50,
+        profitPerHour: 3000,
+        quickForgeLevel: 6,
+        quickForgeReduction: 0.13,
+        rawMaterials: [],
+        recipeId: "bazaar_item",
+        recursiveBaseDurationMs: 60_000,
+        recursiveEffectiveDurationMs: 60_000,
+        usesAhPricing: false,
+      },
+      {
+        baseDurationMs: 60_000,
+        baseMaterialCost: 100,
+        category: "Forging",
+        craftTree: [],
+        effectiveDurationMs: 60_000,
+        hasForgeDependencies: false,
+        hotmRequired: null,
+        materialPriceDetails: [],
+        materialPricingMode: "instant_buy",
+        name: "Auction Item",
+        otherRequirements: [],
+        outputCount: 1,
+        outputPrice: { matchedId: "B", source: "auction", unitPrice: 150 },
+        outputPriceDetail: null,
+        outputPricingMode: "sell_offer",
+        priceCoverage: "complete",
+        profitPerCraft: 50,
+        profitPerHour: 3000,
+        quickForgeLevel: 6,
+        quickForgeReduction: 0.13,
+        rawMaterials: [],
+        recipeId: "auction_item",
+        recursiveBaseDurationMs: 60_000,
+        recursiveEffectiveDurationMs: 60_000,
+        usesAhPricing: true,
       },
     ],
   };
@@ -226,8 +294,66 @@ describe("HeroQueryForm", () => {
     expect(fetchMock.mock.calls[1]?.[0]).toContain(
       "/api/forge/analysis?username=Notch"
     );
+    expect(fetchMock.mock.calls[1]?.[0]).toContain("allowAh=true");
     expect(
       window.localStorage.getItem("better_forge_recent_players")
     ).toContain("Notch");
+  });
+
+  it("hides AH-backed rows by default without refetching when toggled", async () => {
+    const profile = createProfileSummary();
+    const contextPayload = {
+      player: { username: "Technoblade", uuid: "player-uuid" },
+      profile,
+      profiles: [profile],
+      selectedProfileId: "profile-1",
+    };
+    const analysisPayload = createAhAnalysisResponse();
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(contextPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(analysisPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+
+    render(React.createElement(HeroQueryForm));
+
+    fireEvent.change(screen.getByPlaceholderText("e.g. Refraction"), {
+      target: { value: "Technoblade" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Load profile" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("results").textContent).toContain(
+        "Bazaar Item"
+      );
+    });
+
+    expect(screen.getByTestId("results").textContent).not.toContain(
+      "Auction Item"
+    );
+
+    const includeAhToggle = screen.getByRole("checkbox", {
+      name: INCLUDE_AH_LABEL,
+    }) as HTMLInputElement;
+    expect(includeAhToggle.checked).toBe(false);
+
+    fireEvent.click(includeAhToggle);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("results").textContent).toContain(
+        "Auction Item"
+      );
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

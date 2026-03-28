@@ -142,7 +142,7 @@ export function ForgeResultsTable({
               <tr>
                 <th className="px-4 py-4 text-left">Item</th>
                 <th className="px-4 py-4 text-right">HOTM</th>
-                <th className="px-4 py-4 text-right">Total Time</th>
+                <th className="px-4 py-4 text-center">Total Time</th>
                 <th className="px-4 py-4 text-right">Total Mats</th>
                 <th className="px-4 py-4 text-right">Total Revenue</th>
                 <th className="px-4 py-4 text-right">Total Profit</th>
@@ -221,7 +221,7 @@ export function ForgeResultsTable({
             <tr>
               <th className="px-4 py-4 text-left">Item</th>
               <th className="px-4 py-4 text-right">HOTM</th>
-              <th className="px-4 py-4 text-right">Total Time</th>
+              <th className="px-4 py-4 text-center">Total Time</th>
               <th className="px-4 py-4 text-right">Total Mats</th>
               <th className="px-4 py-4 text-right">Total Revenue</th>
               <th className="px-4 py-4 text-right">Total Profit</th>
@@ -258,20 +258,15 @@ export function ForgeResultsTable({
                   <td className="px-4 py-5 text-right tabular-nums">
                     {row.hotmRequired ?? "N/A"}
                   </td>
-                  <td className="px-4 py-5 text-right align-middle tabular-nums">
+                  <td className="px-4 py-5 text-center align-middle tabular-nums">
                     <div className="space-y-1">
                       <p>{formatDuration(metrics.totalDurationMs)}</p>
-                      <p
-                        className={
-                          showForgeChainTime
-                            ? "text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]"
-                            : "invisible text-[11px] uppercase tracking-[0.18em]"
-                        }
-                      >
-                        {showForgeChainTime
-                          ? `Forge Chain: ${formatDuration(metrics.totalRecursiveDurationMs)}`
-                          : "\u00a0"}
-                      </p>
+                      {showForgeChainTime ? (
+                        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                          Forge Chain:{" "}
+                          {formatDuration(metrics.totalRecursiveDurationMs)}
+                        </p>
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-4 py-5 text-right tabular-nums">
@@ -337,7 +332,7 @@ export function ForgeResultsTable({
                   </p>
                   <p className="mt-1">{row.hotmRequired ?? "N/A"}</p>
                 </div>
-                <div>
+                <div className="text-center">
                   <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                     Total Time
                   </p>

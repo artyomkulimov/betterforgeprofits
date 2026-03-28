@@ -168,6 +168,13 @@ export function getPreviousForgeStepDepth(row: ForgeAnalysisRow): number {
   );
 }
 
+export function getDirectForgeDependencyCount(row: ForgeAnalysisRow): number {
+  return row.craftTree.filter((node) => node.isCraftable).length;
+}
+
 export function isSimpleForgeRow(row: ForgeAnalysisRow): boolean {
-  return getPreviousForgeStepDepth(row) <= SIMPLE_CRAFT_MAX_PREVIOUS_STEPS;
+  return (
+    getPreviousForgeStepDepth(row) <= SIMPLE_CRAFT_MAX_PREVIOUS_STEPS &&
+    getDirectForgeDependencyCount(row) <= SIMPLE_CRAFT_MAX_PREVIOUS_STEPS
+  );
 }
