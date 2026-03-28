@@ -572,23 +572,22 @@ export function HeroQueryForm() {
             />
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-            {recentPlayerOptions.length > 0 ? (
-              <div className="min-w-64">
-                <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
-                  Recently visited
-                </span>
-                <CustomSelect
-                  buttonClassName="flex min-h-[46px] w-full items-center justify-between gap-3 border border-[var(--border)] bg-[var(--bg)]/70 px-4 py-3 text-left text-sm text-[var(--text-main)] transition hover:border-[var(--accent)]/60 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isBusy}
-                  onChange={(value: string) => {
-                    setUsername(value);
-                  }}
-                  options={recentPlayerOptions}
-                  placeholder="Recent players"
-                  value=""
-                />
-              </div>
-            ) : null}
+            <div className="min-w-64">
+              <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
+                Recently visited
+              </span>
+              <CustomSelect
+                buttonClassName="flex min-h-[46px] w-full items-center justify-between gap-3 border border-[var(--border)] bg-[var(--bg)]/70 px-4 py-3 text-left text-sm text-[var(--text-main)] transition hover:border-[var(--accent)]/60 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isBusy}
+                emptyMenuMessage="No recent players!"
+                onChange={(value: string) => {
+                  setUsername(value);
+                }}
+                options={recentPlayerOptions}
+                placeholder="Recent players"
+                value=""
+              />
+            </div>
 
             <div className="flex w-full max-w-[15.5rem] flex-col sm:w-[15.5rem] sm:shrink-0 sm:grow-0">
               <span

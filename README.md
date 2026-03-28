@@ -7,6 +7,8 @@ Repo/package/deploy slug: `betterforgeprofits`
 
 This repo keeps the existing `betterforgeprofits` slug for package names, paths, Docker image tags, and deployment references.
 
+The app icon/favicon is derived from the in-repo SkyBlock asset `SkyBlock_items_titanium_tesseract.png` and uses the item art directly on a transparent background.
+
 ## Workspace Layout
 
 - `apps/web`: Next.js app

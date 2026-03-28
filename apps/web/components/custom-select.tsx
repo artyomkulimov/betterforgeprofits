@@ -14,6 +14,7 @@ export function CustomSelect({
   onChange,
   disabled,
   placeholder,
+  emptyMenuMessage,
   buttonClassName,
   menuClassName,
 }: {
@@ -22,6 +23,7 @@ export function CustomSelect({
   onChange: (value: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  emptyMenuMessage?: string;
   buttonClassName?: string;
   menuClassName?: string;
 }) {
@@ -90,34 +92,41 @@ export function CustomSelect({
           role="listbox"
         >
           <div className="max-h-80 overflow-y-auto p-2">
-            {options.map((option) => {
-              const active = option.value === value;
+            {options.length === 0 && emptyMenuMessage ? (
+              <p className="px-3 py-3 text-[var(--text-muted)] text-sm">
+                {emptyMenuMessage}
+              </p>
+            ) : null}
+            {options.length > 0
+              ? options.map((option) => {
+                  const active = option.value === value;
 
-              return (
-                <button
-                  className={`flex w-full items-start justify-between gap-4 border px-3 py-3 text-left transition ${
-                    active
-                      ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--text-main)]"
-                      : "border-transparent bg-transparent text-[var(--text-soft)] hover:border-[var(--border)] hover:bg-[var(--panel)]/70"
-                  }`}
-                  key={option.value}
-                  onClick={() => {
-                    setOpen(false);
-                    onChange(option.value);
-                  }}
-                  type="button"
-                >
-                  <span className="block min-w-0 truncate text-sm">
-                    {option.label}
-                  </span>
-                  {active ? (
-                    <span className="pt-0.5 text-[11px] text-[var(--accent)] uppercase tracking-[0.24em]">
-                      Live
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+                  return (
+                    <button
+                      className={`flex w-full items-start justify-between gap-4 border px-3 py-3 text-left transition ${
+                        active
+                          ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--text-main)]"
+                          : "border-transparent bg-transparent text-[var(--text-soft)] hover:border-[var(--border)] hover:bg-[var(--panel)]/70"
+                      }`}
+                      key={option.value}
+                      onClick={() => {
+                        setOpen(false);
+                        onChange(option.value);
+                      }}
+                      type="button"
+                    >
+                      <span className="block min-w-0 truncate text-sm">
+                        {option.label}
+                      </span>
+                      {active ? (
+                        <span className="pt-0.5 text-[11px] text-[var(--accent)] uppercase tracking-[0.24em]">
+                          Live
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })
+              : null}
           </div>
         </div>
       ) : null}

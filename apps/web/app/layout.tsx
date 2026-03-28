@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "Better Forge",
   description:
     "Better Forge is a single-page Hypixel SkyBlock forge profit helper.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
