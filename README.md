@@ -2,6 +2,15 @@
 
 Hypixel SkyBlock forge profit calculator.
 
+Monorepo for the web app, price-sync worker, shared forge logic, and database layer.
+
+## Workspace
+
+- `apps/web`: Next.js app
+- `apps/worker`: Bazaar/AH sync worker
+- `packages/forge-core`: shared forge analysis logic
+- `packages/db`: database schema and repository code
+
 ## Setup
 
 ```bash
@@ -13,6 +22,8 @@ Required env vars:
 
 - `HYPIXEL_API_KEY`
 - `DATABASE_URL`
+
+The web app reads local env from `apps/web/.env.local`.
 
 ## Commands
 
