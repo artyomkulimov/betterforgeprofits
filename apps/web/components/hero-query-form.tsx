@@ -491,7 +491,7 @@ export function HeroQueryForm() {
               value={username}
             />
           </label>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             {recentPlayerOptions.length > 0 ? (
               <div className="min-w-64">
                 <span className="mb-2 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.26em]">
@@ -510,13 +510,21 @@ export function HeroQueryForm() {
               </div>
             ) : null}
 
-            <button
-              className="inline-flex items-center justify-center border border-[var(--accent)] bg-[var(--accent)] px-8 py-3 font-semibold text-[var(--bg)] text-sm tracking-wide transition hover:bg-transparent hover:text-[var(--accent)] disabled:cursor-wait disabled:opacity-60"
-              disabled={isBusy}
-              type="submit"
-            >
-              {submitLabel}
-            </button>
+            <div className="flex w-full max-w-[15.5rem] flex-col sm:w-[15.5rem] sm:shrink-0 sm:grow-0">
+              <span
+                aria-hidden
+                className="mb-2 block select-none text-[11px] text-transparent uppercase tracking-[0.26em]"
+              >
+                Action
+              </span>
+              <button
+                className="inline-flex h-[46px] w-full items-center justify-start rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-4 text-left font-semibold text-[var(--bg)] text-sm tracking-wide transition hover:bg-transparent hover:text-[var(--accent)] disabled:cursor-wait disabled:opacity-60"
+                disabled={isBusy}
+                type="submit"
+              >
+                {submitLabel}
+              </button>
+            </div>
           </div>
 
           {workspaceVisible ? (
@@ -544,7 +552,7 @@ export function HeroQueryForm() {
       {workspaceVisible ? (
         <>
           <div className="space-y-6">
-            <div className="animate-[panel-rise_420ms_ease-out]">
+            <div className="animate-[panel-fade_220ms_ease-out]">
               <ProfileSummary
                 analysis={analysis}
                 isLoading={
@@ -553,7 +561,7 @@ export function HeroQueryForm() {
                 profile={contextProfile}
               />
             </div>
-            <div className="animate-[panel-rise_480ms_ease-out]">
+            <div className="animate-[panel-fade_240ms_ease-out]">
               <details className="group">
                 <summary className="flex cursor-pointer list-none items-center justify-between border border-[var(--border)] bg-[var(--bg)]/45 px-4 py-3 text-[var(--accent)] text-sm uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50">
                   <span>Advanced — HOTM & Quick Forge</span>
@@ -597,7 +605,7 @@ export function HeroQueryForm() {
             </div>
           </div>
 
-          <section className="mt-10 animate-[panel-rise_520ms_ease-out] space-y-8 border-[var(--border)] border-t pt-12">
+          <section className="mt-10 animate-[panel-fade_260ms_ease-out] space-y-8 border-[var(--border)] border-t pt-12">
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="border border-[var(--border)] bg-[var(--panel)]/40 p-4">
                 <span className="mb-3 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">

@@ -1,14 +1,16 @@
 import { normalizeItemName } from "@betterforgeprofits/forge-core/recipes";
 import type { ForgeRecipe } from "@betterforgeprofits/forge-core/types";
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { eq, notInArray } from "drizzle-orm";
 import { getDb } from "./client";
 import {
   auctionItemPrices,
   bazaarItemPrices,
   itemAliases,
-  priceSnapshots,
+  priceSources,
   syncRuns,
 } from "./schema";
+
+type PriceSourceName = "auction" | "bazaar";
 
 export async function startSyncRun(source: string) {
   const db = getDb();
@@ -42,95 +44,217 @@ export async function finishSyncRun(
     .where(eq(syncRuns.id, id));
 }
 
-export async function createSnapshot(
-  source: "auction" | "bazaar",
-  fetchedAt: number,
-  hypixelLastUpdated: number | null
+async function upsertPriceSource(
+  source: PriceSourceName,
+  metadata: {
+    fetchedAt: number;
+    hypixelLastUpdated: number | null;
+    metaJson?: Record<string, unknown>;
+    status: string;
+  }
 ) {
   const db = getDb();
-  const rows = await db
-    .insert(priceSnapshots)
+  const now = new Date();
+
+  await db
+    .insert(priceSources)
     .values({
       source,
-      fetchedAt: new Date(fetchedAt),
-      hypixelLastUpdated: hypixelLastUpdated
-        ? new Date(hypixelLastUpdated)
+      fetchedAt: new Date(metadata.fetchedAt),
+      hypixelLastUpdated: metadata.hypixelLastUpdated
+        ? new Date(metadata.hypixelLastUpdated)
         : null,
-      isCurrent: false,
+      updatedAt: now,
+      status: metadata.status,
+      metaJson: metadata.metaJson ?? null,
     })
-    .returning({ id: priceSnapshots.id });
-
-  return rows[0].id;
+    .onConflictDoUpdate({
+      target: priceSources.source,
+      set: {
+        fetchedAt: new Date(metadata.fetchedAt),
+        hypixelLastUpdated: metadata.hypixelLastUpdated
+          ? new Date(metadata.hypixelLastUpdated)
+          : null,
+        updatedAt: now,
+        status: metadata.status,
+        metaJson: metadata.metaJson ?? null,
+      },
+    });
 }
 
-export async function markSnapshotCurrent(
-  source: "auction" | "bazaar",
-  snapshotId: number
-) {
-  const db = getDb();
-  await db.transaction(async (transaction) => {
-    await transaction
-      .update(priceSnapshots)
-      .set({ isCurrent: false })
-      .where(eq(priceSnapshots.source, source));
-
-    await transaction
-      .update(priceSnapshots)
-      .set({ isCurrent: true })
-      .where(eq(priceSnapshots.id, snapshotId));
-  });
-}
-
-export async function replaceBazaarPrices(
-  snapshotId: number,
+export async function replaceCurrentBazaarPrices(
   rows: Array<{
     buyOrderPrice: number | null;
     itemName: string;
     lastUpdated: number | null;
     productId: string;
     sellOfferPrice: number | null;
-  }>
+  }>,
+  metadata: {
+    fetchedAt: number;
+    hypixelLastUpdated: number | null;
+  }
 ) {
-  const db = getDb();
   if (rows.length === 0) {
-    return;
+    throw new Error("Refusing to replace Bazaar prices with an empty dataset.");
   }
 
-  await db.insert(bazaarItemPrices).values(
-    rows.map((row) => ({
-      snapshotId,
-      productId: row.productId,
-      itemName: row.itemName,
-      buyOrderPrice: row.buyOrderPrice,
-      sellOfferPrice: row.sellOfferPrice,
-      lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
-    }))
-  );
+  const db = getDb();
+  const now = new Date();
+  const productIds = rows.map((row) => row.productId);
+
+  await db.transaction(async (transaction) => {
+    for (const row of rows) {
+      await transaction
+        .insert(bazaarItemPrices)
+        .values({
+          productId: row.productId,
+          itemName: row.itemName,
+          buyOrderPrice: row.buyOrderPrice,
+          sellOfferPrice: row.sellOfferPrice,
+          lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: bazaarItemPrices.productId,
+          set: {
+            itemName: row.itemName,
+            buyOrderPrice: row.buyOrderPrice,
+            sellOfferPrice: row.sellOfferPrice,
+            lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
+            updatedAt: now,
+          },
+        });
+    }
+
+    await transaction
+      .insert(priceSources)
+      .values({
+        source: "bazaar",
+        fetchedAt: new Date(metadata.fetchedAt),
+        hypixelLastUpdated: metadata.hypixelLastUpdated
+          ? new Date(metadata.hypixelLastUpdated)
+          : null,
+        updatedAt: now,
+        status: "completed",
+        metaJson: {
+          itemCount: rows.length,
+        },
+      })
+      .onConflictDoUpdate({
+        target: priceSources.source,
+        set: {
+          fetchedAt: new Date(metadata.fetchedAt),
+          hypixelLastUpdated: metadata.hypixelLastUpdated
+            ? new Date(metadata.hypixelLastUpdated)
+            : null,
+          updatedAt: now,
+          status: "completed",
+          metaJson: {
+            itemCount: rows.length,
+          },
+        },
+      });
+
+    await transaction
+      .delete(bazaarItemPrices)
+      .where(notInArray(bazaarItemPrices.productId, productIds));
+  });
 }
 
-export async function replaceAuctionPrices(
-  snapshotId: number,
+export async function replaceCurrentAuctionPrices(
   rows: Array<{
     displayName: string;
     lastUpdated: number | null;
     lowestBin: number;
     normalizedName: string;
-  }>
+  }>,
+  metadata: {
+    fetchedAt: number;
+    hypixelLastUpdated: number | null;
+  }
 ) {
-  const db = getDb();
   if (rows.length === 0) {
-    return;
+    throw new Error(
+      "Refusing to replace Auction prices with an empty dataset."
+    );
   }
 
-  await db.insert(auctionItemPrices).values(
-    rows.map((row) => ({
-      snapshotId,
-      normalizedName: row.normalizedName,
-      displayName: row.displayName,
-      lowestBin: row.lowestBin,
-      lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
-    }))
-  );
+  const db = getDb();
+  const now = new Date();
+  const normalizedNames = rows.map((row) => row.normalizedName);
+
+  await db.transaction(async (transaction) => {
+    for (const row of rows) {
+      await transaction
+        .insert(auctionItemPrices)
+        .values({
+          normalizedName: row.normalizedName,
+          displayName: row.displayName,
+          lowestBin: row.lowestBin,
+          lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: auctionItemPrices.normalizedName,
+          set: {
+            displayName: row.displayName,
+            lowestBin: row.lowestBin,
+            lastUpdated: row.lastUpdated ? new Date(row.lastUpdated) : null,
+            updatedAt: now,
+          },
+        });
+    }
+
+    await transaction
+      .insert(priceSources)
+      .values({
+        source: "auction",
+        fetchedAt: new Date(metadata.fetchedAt),
+        hypixelLastUpdated: metadata.hypixelLastUpdated
+          ? new Date(metadata.hypixelLastUpdated)
+          : null,
+        updatedAt: now,
+        status: "completed",
+        metaJson: {
+          itemCount: rows.length,
+        },
+      })
+      .onConflictDoUpdate({
+        target: priceSources.source,
+        set: {
+          fetchedAt: new Date(metadata.fetchedAt),
+          hypixelLastUpdated: metadata.hypixelLastUpdated
+            ? new Date(metadata.hypixelLastUpdated)
+            : null,
+          updatedAt: now,
+          status: "completed",
+          metaJson: {
+            itemCount: rows.length,
+          },
+        },
+      });
+
+    await transaction
+      .delete(auctionItemPrices)
+      .where(notInArray(auctionItemPrices.normalizedName, normalizedNames));
+  });
+}
+
+export async function markPriceSourceFailed(
+  source: PriceSourceName,
+  errorMessage: string,
+  metaJson?: Record<string, unknown>
+) {
+  await upsertPriceSource(source, {
+    fetchedAt: Date.now(),
+    hypixelLastUpdated: null,
+    status: "failed",
+    metaJson: {
+      ...(metaJson ?? {}),
+      errorMessage,
+    },
+  });
 }
 
 export async function upsertItemAliases(
@@ -166,29 +290,15 @@ export async function upsertItemAliases(
   }
 }
 
-export async function cleanupOldSnapshots() {
+export async function trimAliasesToNames(normalizedNames: string[]) {
   const db = getDb();
-  const staleBefore = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const staleSnapshots = await db
-    .select({ id: priceSnapshots.id })
-    .from(priceSnapshots)
-    .where(
-      and(
-        eq(priceSnapshots.isCurrent, false),
-        lt(priceSnapshots.fetchedAt, staleBefore)
-      )
-    );
-
-  if (staleSnapshots.length === 0) {
+  if (normalizedNames.length === 0) {
     return;
   }
 
-  await db.delete(priceSnapshots).where(
-    inArray(
-      priceSnapshots.id,
-      staleSnapshots.map((snapshot) => snapshot.id)
-    )
-  );
+  await db
+    .delete(itemAliases)
+    .where(notInArray(itemAliases.normalizedName, normalizedNames));
 }
 
 export function recipeNamesToAliasRows(recipes: ForgeRecipe[]) {

@@ -1,10 +1,9 @@
 import {
-  createSnapshot,
   finishSyncRun,
-  markSnapshotCurrent,
+  markPriceSourceFailed,
   recipeNamesToAliasRows,
-  replaceAuctionPrices,
-  replaceBazaarPrices,
+  replaceCurrentAuctionPrices,
+  replaceCurrentBazaarPrices,
   startSyncRun,
   upsertItemAliases,
 } from "@betterforgeprofits/db/sync";
@@ -74,157 +73,197 @@ function extractAuctionCandidate(auction: Record<string, unknown>) {
   };
 }
 
-export async function syncPrices() {
-  const syncRunId = await startSyncRun("prices");
+async function syncBazaarSource(
+  aliasRows: Array<{
+    auctionMatchName: string;
+    normalizedName: string;
+    productId: string | null;
+    sourcePriority: number;
+  }>,
+  relevantNames: Set<string>
+) {
+  const [bazaar, items] = await Promise.all([
+    getSkyBlockBazaar(),
+    getSkyBlockItems(),
+  ]);
 
-  try {
-    const relevantNames = new Set(getForgeRelevantItemNames());
-    const recipes = getForgeRecipes();
+  const itemNameById = new Map(items.items.map((item) => [item.id, item.name]));
+  const bazaarRows: Array<{
+    buyOrderPrice: number | null;
+    itemName: string;
+    lastUpdated: number | null;
+    productId: string;
+    sellOfferPrice: number | null;
+  }> = [];
 
-    const [bazaar, items, firstAuctionPage] = await Promise.all([
-      getSkyBlockBazaar(),
-      getSkyBlockItems(),
-      getSkyBlockAuctions(0),
-    ]);
+  for (const [productId, product] of Object.entries(bazaar.products)) {
+    const itemName =
+      itemNameById.get(productId) ?? productId.replaceAll("_", " ");
+    const variants = buildDisplayVariants(itemName);
+    const matchesRelevant =
+      variants.some((variant) => relevantNames.has(variant)) ||
+      Object.values(MANUAL_PRODUCT_ALIASES).includes(productId);
 
-    const itemNameById = new Map(
-      items.items.map((item) => [item.id, item.name])
-    );
-    const aliasRows = recipeNamesToAliasRows(recipes);
-    const bazaarRows: Array<{
-      buyOrderPrice: number | null;
-      itemName: string;
-      lastUpdated: number | null;
-      productId: string;
-      sellOfferPrice: number | null;
-    }> = [];
+    if (!matchesRelevant) {
+      continue;
+    }
 
-    for (const [productId, product] of Object.entries(bazaar.products)) {
-      const itemName =
-        itemNameById.get(productId) ?? productId.replaceAll("_", " ");
-      const variants = buildDisplayVariants(itemName);
-      const matchesRelevant =
-        variants.some((variant) => relevantNames.has(variant)) ||
-        Object.values(MANUAL_PRODUCT_ALIASES).includes(productId);
+    bazaarRows.push({
+      productId,
+      itemName,
+      buyOrderPrice:
+        product.buy_summary?.[0]?.pricePerUnit ??
+        product.quick_status?.buyPrice ??
+        null,
+      sellOfferPrice:
+        product.sell_summary?.[0]?.pricePerUnit ??
+        product.quick_status?.sellPrice ??
+        null,
+      lastUpdated: bazaar.lastUpdated ?? null,
+    });
 
-      if (!matchesRelevant) {
+    for (const variant of variants) {
+      aliasRows.push({
+        normalizedName: variant,
+        auctionMatchName: variant,
+        productId,
+        sourcePriority: 10,
+      });
+    }
+  }
+
+  await replaceCurrentBazaarPrices(bazaarRows, {
+    fetchedAt: Date.now(),
+    hypixelLastUpdated: bazaar.lastUpdated ?? null,
+  });
+
+  return {
+    bazaarRows,
+  };
+}
+
+async function syncAuctionSource(relevantAuctionNames: Set<string>) {
+  const firstAuctionPage = await getSkyBlockAuctions(0);
+  const auctionPages = Array.from(
+    { length: firstAuctionPage.totalPages - 1 },
+    (_, index) => index + 1
+  );
+  const lowestBinByName = new Map<
+    string,
+    { displayName: string; lowestBin: number }
+  >();
+
+  const processAuctions = (auctions: Record<string, unknown>[]) => {
+    for (const auction of auctions) {
+      const candidate = extractAuctionCandidate(auction);
+      if (!candidate) {
         continue;
       }
 
-      bazaarRows.push({
-        productId,
-        itemName,
-        buyOrderPrice:
-          product.buy_summary?.[0]?.pricePerUnit ??
-          product.quick_status?.buyPrice ??
-          null,
-        sellOfferPrice:
-          product.sell_summary?.[0]?.pricePerUnit ??
-          product.quick_status?.sellPrice ??
-          null,
-        lastUpdated: bazaar.lastUpdated ?? null,
-      });
+      if (!relevantAuctionNames.has(candidate.normalizedName)) {
+        continue;
+      }
 
-      for (const variant of variants) {
-        aliasRows.push({
-          normalizedName: variant,
-          auctionMatchName: variant,
-          productId,
-          sourcePriority: 10,
+      const current = lowestBinByName.get(candidate.normalizedName);
+      if (!current || candidate.startingBid < current.lowestBin) {
+        lowestBinByName.set(candidate.normalizedName, {
+          displayName: candidate.itemName,
+          lowestBin: candidate.startingBid,
         });
       }
     }
+  };
 
-    for (const [alias, productId] of Object.entries(MANUAL_PRODUCT_ALIASES)) {
-      aliasRows.push({
-        normalizedName: alias,
-        auctionMatchName: alias,
-        productId,
-        sourcePriority: 1,
-      });
+  processAuctions(firstAuctionPage.auctions);
+
+  for (const group of chunk(auctionPages, 6)) {
+    const pages = await Promise.all(
+      group.map((page) => getSkyBlockAuctions(page))
+    );
+    for (const page of pages) {
+      processAuctions(page.auctions);
     }
+  }
+
+  const auctionRows = [...lowestBinByName.entries()].map(
+    ([normalizedName, value]) => ({
+      normalizedName,
+      displayName: value.displayName,
+      lowestBin: value.lowestBin,
+      lastUpdated: firstAuctionPage.lastUpdated ?? null,
+    })
+  );
+
+  await replaceCurrentAuctionPrices(auctionRows, {
+    fetchedAt: Date.now(),
+    hypixelLastUpdated: firstAuctionPage.lastUpdated ?? null,
+  });
+
+  return { auctionRows };
+}
+
+export async function syncPrices() {
+  const syncRunId = await startSyncRun("prices");
+  const relevantNames = new Set(getForgeRelevantItemNames());
+  const recipes = getForgeRecipes();
+  const aliasRows = recipeNamesToAliasRows(recipes);
+  const meta: Record<string, unknown> = {
+    recipes: recipes.length,
+  };
+  const failures: string[] = [];
+
+  for (const [alias, productId] of Object.entries(MANUAL_PRODUCT_ALIASES)) {
+    aliasRows.push({
+      normalizedName: alias,
+      auctionMatchName: alias,
+      productId,
+      sourcePriority: 1,
+    });
+  }
+
+  try {
+    try {
+      const { bazaarRows } = await syncBazaarSource(aliasRows, relevantNames);
+      meta.bazaarItems = bazaarRows.length;
+      meta.bazaarStatus = "completed";
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown Bazaar sync failure.";
+      failures.push(`Bazaar: ${message}`);
+      meta.bazaarStatus = "failed";
+      await markPriceSourceFailed("bazaar", message);
+    }
+
+    await upsertItemAliases(aliasRows);
 
     const relevantAuctionNames = new Set(
       aliasRows.map((row) => row.auctionMatchName)
     );
-    const auctionPages = Array.from(
-      { length: firstAuctionPage.totalPages - 1 },
-      (_, index) => index + 1
-    );
-    const lowestBinByName = new Map<
-      string,
-      { displayName: string; lowestBin: number }
-    >();
 
-    const processAuctions = (auctions: Record<string, unknown>[]) => {
-      for (const auction of auctions) {
-        const candidate = extractAuctionCandidate(auction);
-        if (!candidate) {
-          continue;
-        }
-
-        if (!relevantAuctionNames.has(candidate.normalizedName)) {
-          continue;
-        }
-
-        const current = lowestBinByName.get(candidate.normalizedName);
-        if (!current || candidate.startingBid < current.lowestBin) {
-          lowestBinByName.set(candidate.normalizedName, {
-            displayName: candidate.itemName,
-            lowestBin: candidate.startingBid,
-          });
-        }
-      }
-    };
-
-    processAuctions(firstAuctionPage.auctions);
-
-    for (const group of chunk(auctionPages, 6)) {
-      const pages = await Promise.all(
-        group.map((page) => getSkyBlockAuctions(page))
-      );
-      for (const page of pages) {
-        processAuctions(page.auctions);
-      }
+    try {
+      const { auctionRows } = await syncAuctionSource(relevantAuctionNames);
+      meta.auctionItems = auctionRows.length;
+      meta.auctionStatus = "completed";
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unknown Auction sync failure.";
+      failures.push(`Auction: ${message}`);
+      meta.auctionStatus = "failed";
+      await markPriceSourceFailed("auction", message);
     }
 
-    const auctionRows = [...lowestBinByName.entries()].map(
-      ([normalizedName, value]) => ({
-        normalizedName,
-        displayName: value.displayName,
-        lowestBin: value.lowestBin,
-        lastUpdated: firstAuctionPage.lastUpdated ?? null,
-      })
-    );
+    if (failures.length > 0) {
+      throw new Error(failures.join(" | "));
+    }
 
-    const bazaarSnapshotId = await createSnapshot(
-      "bazaar",
-      Date.now(),
-      bazaar.lastUpdated ?? null
-    );
-    await replaceBazaarPrices(bazaarSnapshotId, bazaarRows);
-
-    const auctionSnapshotId = await createSnapshot(
-      "auction",
-      Date.now(),
-      firstAuctionPage.lastUpdated ?? null
-    );
-    await replaceAuctionPrices(auctionSnapshotId, auctionRows);
-
-    await upsertItemAliases(aliasRows);
-    await markSnapshotCurrent("bazaar", bazaarSnapshotId);
-    await markSnapshotCurrent("auction", auctionSnapshotId);
-
-    await finishSyncRun(syncRunId, "completed", {
-      auctionItems: auctionRows.length,
-      bazaarItems: bazaarRows.length,
-      recipes: recipes.length,
-    });
+    await finishSyncRun(syncRunId, "completed", meta);
   } catch (error) {
     await finishSyncRun(
       syncRunId,
       "failed",
-      {},
+      meta,
       error instanceof Error ? error.message : "Unknown sync failure."
     );
     throw error;

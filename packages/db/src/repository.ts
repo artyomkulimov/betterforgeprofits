@@ -8,13 +8,13 @@ import type {
   PriceQuote,
   PriceRepository,
 } from "@betterforgeprofits/forge-core/types";
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { getDb } from "./client";
 import {
   auctionItemPrices,
   bazaarItemPrices,
   itemAliases,
-  priceSnapshots,
+  priceSources,
 } from "./schema";
 
 function buildDisplayVariants(name: string): string[] {
@@ -44,16 +44,16 @@ function resolveBazaarUnitPrice(
 }
 
 function buildFreshnessMeta(
-  snapshotRows: Array<{
+  sourceRows: Array<{
     fetchedAt: Date;
     source: "auction" | "bazaar";
   }>
 ): PriceFreshnessMeta {
   const bazaar =
-    snapshotRows.find((row) => row.source === "bazaar")?.fetchedAt.getTime() ??
+    sourceRows.find((row) => row.source === "bazaar")?.fetchedAt.getTime() ??
     null;
   const auction =
-    snapshotRows.find((row) => row.source === "auction")?.fetchedAt.getTime() ??
+    sourceRows.find((row) => row.source === "auction")?.fetchedAt.getTime() ??
     null;
   const newest = [bazaar, auction].filter(
     (value): value is number => value !== null
@@ -221,21 +221,14 @@ export class InMemoryPriceRepository implements PriceRepository {
 export class PostgresPriceRepository implements PriceRepository {
   async preloadCurrentPricing(): Promise<CurrentPricingSnapshot> {
     const db = getDb();
-    const snapshotRows = await db
-      .select({
-        fetchedAt: priceSnapshots.fetchedAt,
-        id: priceSnapshots.id,
-        source: priceSnapshots.source,
-      })
-      .from(priceSnapshots)
-      .where(eq(priceSnapshots.isCurrent, true));
 
-    const bazaarSnapshotId =
-      snapshotRows.find((row) => row.source === "bazaar")?.id ?? null;
-    const auctionSnapshotId =
-      snapshotRows.find((row) => row.source === "auction")?.id ?? null;
-
-    const [aliases, bazaar, auction] = await Promise.all([
+    const [sourceRows, aliases, bazaar, auction] = await Promise.all([
+      db
+        .select({
+          fetchedAt: priceSources.fetchedAt,
+          source: priceSources.source,
+        })
+        .from(priceSources),
       db
         .select({
           normalizedName: itemAliases.normalizedName,
@@ -245,32 +238,26 @@ export class PostgresPriceRepository implements PriceRepository {
         })
         .from(itemAliases)
         .orderBy(asc(itemAliases.sourcePriority)),
-      bazaarSnapshotId === null
-        ? Promise.resolve([])
-        : db
-            .select({
-              productId: bazaarItemPrices.productId,
-              buyOrderPrice: bazaarItemPrices.buyOrderPrice,
-              sellOfferPrice: bazaarItemPrices.sellOfferPrice,
-            })
-            .from(bazaarItemPrices)
-            .where(eq(bazaarItemPrices.snapshotId, bazaarSnapshotId)),
-      auctionSnapshotId === null
-        ? Promise.resolve([])
-        : db
-            .select({
-              normalizedName: auctionItemPrices.normalizedName,
-              lowestBin: auctionItemPrices.lowestBin,
-            })
-            .from(auctionItemPrices)
-            .where(eq(auctionItemPrices.snapshotId, auctionSnapshotId)),
+      db
+        .select({
+          productId: bazaarItemPrices.productId,
+          buyOrderPrice: bazaarItemPrices.buyOrderPrice,
+          sellOfferPrice: bazaarItemPrices.sellOfferPrice,
+        })
+        .from(bazaarItemPrices),
+      db
+        .select({
+          normalizedName: auctionItemPrices.normalizedName,
+          lowestBin: auctionItemPrices.lowestBin,
+        })
+        .from(auctionItemPrices),
     ]);
 
     return {
       aliases,
       bazaar,
       auction,
-      freshnessMeta: buildFreshnessMeta(snapshotRows),
+      freshnessMeta: buildFreshnessMeta(sourceRows),
     };
   }
 

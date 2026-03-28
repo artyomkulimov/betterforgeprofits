@@ -17,7 +17,6 @@ Monorepo for the BetterForgeProfits web app, Postgres-backed pricing cache, and 
 - `bun run worker:migrate`
 - `bun run worker:sync-prices`
 - `bun run worker:backfill-aliases`
-- `bun run worker:cleanup`
 
 ## Required Environment Variables
 
@@ -33,6 +32,7 @@ Monorepo for the BetterForgeProfits web app, Postgres-backed pricing cache, and 
 
 The worker machine should run the worker directly against Hypixel and Supabase Postgres.
 Do not proxy this through a website endpoint unless you want to introduce an extra auth/rate-limit layer and accept another failure point.
+The worker now stores only the latest current Bazaar/AH prices plus source freshness metadata instead of writing a full duplicated snapshot every refresh.
 
 ### 1. Install Docker
 

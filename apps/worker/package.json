@@ -5,8 +5,7 @@
   "scripts": {
     "migrate": "bunx drizzle-kit push --config ../../drizzle.config.ts",
     "sync-prices": "bun src/cli.ts sync-prices",
-    "backfill-aliases": "bun src/cli.ts backfill-aliases",
-    "cleanup": "bun src/cli.ts cleanup"
+    "backfill-aliases": "bun src/cli.ts backfill-aliases"
   },
   "dependencies": {
     "@betterforgeprofits/db": "workspace:*",
