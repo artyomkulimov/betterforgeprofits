@@ -109,6 +109,8 @@ export function CraftPricingPopover({
     targetAmount: 1,
     slotCount: 1,
   });
+  const showForgeChainTime =
+    row.recursiveEffectiveDurationMs !== row.effectiveDurationMs;
 
   useEffect(() => {
     if (!isOpen) {
@@ -245,20 +247,22 @@ export function CraftPricingPopover({
             </div>
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
               <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
-                Top-Level Forge Time
+                {showForgeChainTime ? "Top-Level Forge Time" : "Forge Time"}
               </p>
               <p className="mt-2 text-[var(--text-soft)]">
                 {formatDuration(row.effectiveDurationMs)}
               </p>
             </div>
-            <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
-              <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
-                Forge Chain Time
-              </p>
-              <p className="mt-2 text-[var(--text-soft)]">
-                {formatDuration(row.recursiveEffectiveDurationMs)}
-              </p>
-            </div>
+            {showForgeChainTime ? (
+              <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3">
+                <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
+                  Forge Chain Time
+                </p>
+                <p className="mt-2 text-[var(--text-soft)]">
+                  {formatDuration(row.recursiveEffectiveDurationMs)}
+                </p>
+              </div>
+            ) : null}
             <div className="border border-[var(--border)] bg-[var(--bg)]/30 px-4 py-3 sm:col-span-2 xl:col-span-1">
               <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.2em]">
                 Output Match

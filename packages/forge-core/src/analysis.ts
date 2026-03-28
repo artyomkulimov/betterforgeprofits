@@ -670,8 +670,8 @@ async function analyzeRecipe(
   const recursiveEffectiveDurationMs =
     effectiveDurationMs + recursiveTreeDurations.effectiveDurationMs;
   const profitPerHour =
-    profitPerCraft !== null && effectiveDurationMs > 0
-      ? profitPerCraft / (effectiveDurationMs / 3_600_000)
+    profitPerCraft !== null && recursiveEffectiveDurationMs > 0
+      ? profitPerCraft / (recursiveEffectiveDurationMs / 3_600_000)
       : null;
 
   return {

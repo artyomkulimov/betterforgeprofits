@@ -2,8 +2,10 @@
 
 import {
   isLowForgeTimeRow,
+  isSimpleForgeRow,
   isSuspiciousForgeRow,
   LOW_FORGE_TIME_THRESHOLD_MS,
+  SIMPLE_CRAFT_MAX_PREVIOUS_STEPS,
   SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD,
   sortForgeRows,
 } from "@betterforgeprofits/forge-core/presentation";
@@ -133,6 +135,13 @@ function getSubmitLabel(isProfileLoading: boolean, isAnalysisLoading: boolean) {
   return "Load profile";
 }
 
+function logForgeUiEvent(event: string, fields: Record<string, unknown>) {
+  console.info("[forge-ui]", {
+    event,
+    ...fields,
+  });
+}
+
 export function HeroQueryForm() {
   const [username, setUsername] = useState("");
   const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
@@ -149,7 +158,8 @@ export function HeroQueryForm() {
   const [showAnalysisUpdatedToast, setShowAnalysisUpdatedToast] =
     useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("profit_per_hour");
-  const [allowAh, setAllowAh] = useState(false);
+  const [allowAh, setAllowAh] = useState(true);
+  const [showSimpleCraftsOnly, setShowSimpleCraftsOnly] = useState(false);
   const [hideLowForgeTimeItems, setHideLowForgeTimeItems] = useState(false);
   const [hideSuspiciousItems, setHideSuspiciousItems] = useState(false);
   const [materialPricing, setMaterialPricing] =
@@ -190,14 +200,24 @@ export function HeroQueryForm() {
         return false;
       }
 
+      if (!allowAh && row.usesAhPricing) {
+        return false;
+      }
+
+      if (showSimpleCraftsOnly && !isSimpleForgeRow(row)) {
+        return false;
+      }
+
       return true;
     });
   }, [
+    allowAh,
     deferredRows,
     hideLowForgeTimeItems,
     hideSuspiciousItems,
     parsedSlotCount,
     parsedTargetAmount,
+    showSimpleCraftsOnly,
   ]);
   const displayRows = useMemo(
     () =>
@@ -253,6 +273,66 @@ export function HeroQueryForm() {
     };
   }, [analysis, error, isAnalysisLoading, isProfileLoading]);
 
+  useEffect(() => {
+    if (!workspaceVisible) {
+      return;
+    }
+
+    logForgeUiEvent("results_state", {
+      username: playerName ?? username,
+      selectedProfileId: selectedProfileId || null,
+      profileName:
+        contextProfile?.cuteName ?? analysis?.profile.cuteName ?? null,
+      isProfileLoading,
+      isAnalysisLoading,
+      error,
+      backendRowCount: analysis?.rows.length ?? 0,
+      deferredRowCount: deferredRows.length,
+      visibleRowCount: visibleRows.length,
+      displayRowCount: displayRows.length,
+      sortMode,
+      filters: {
+        allowAh,
+        hideLowForgeTimeItems,
+        hideSuspiciousItems,
+        showSimpleCraftsOnly,
+      },
+      settings: {
+        hotmLevel,
+        materialPricing,
+        outputPricing,
+        quickForgeLevel,
+        slotCount: parsedSlotCount,
+        targetAmount: parsedTargetAmount,
+      },
+      visibleForgeItems: displayRows.map((row) => row.name),
+    });
+  }, [
+    allowAh,
+    analysis,
+    contextProfile,
+    deferredRows,
+    displayRows,
+    error,
+    hideLowForgeTimeItems,
+    hideSuspiciousItems,
+    hotmLevel,
+    isAnalysisLoading,
+    isProfileLoading,
+    materialPricing,
+    outputPricing,
+    parsedSlotCount,
+    parsedTargetAmount,
+    playerName,
+    quickForgeLevel,
+    selectedProfileId,
+    showSimpleCraftsOnly,
+    sortMode,
+    username,
+    visibleRows,
+    workspaceVisible,
+  ]);
+
   const toastTone = getCalculationToastTone(
     isProfileLoading,
     isAnalysisLoading,
@@ -296,7 +376,7 @@ export function HeroQueryForm() {
     return {
       username: profilesPayload.player.username,
       profileId: profilesPayload.selectedProfileId,
-      allowAh,
+      allowAh: true,
       materialPricing,
       outputPricing,
       hotmLevel: String(selected?.hotmTier ?? 0),
@@ -425,7 +505,7 @@ export function HeroQueryForm() {
 
     setError(null);
     fetchAnalysisWithSettings(activeUsername, profileId, {
-      allowAh: nextSettings?.allowAh ?? allowAh,
+      allowAh: true,
       materialPricing: nextSettings?.materialPricing ?? materialPricing,
       outputPricing: nextSettings?.outputPricing ?? outputPricing,
       hotmLevel: nextSettings?.hotmLevel ?? hotmLevel,
@@ -564,7 +644,7 @@ export function HeroQueryForm() {
             <div className="animate-[panel-fade_240ms_ease-out]">
               <details className="group">
                 <summary className="flex cursor-pointer list-none items-center justify-between border border-[var(--border)] bg-[var(--bg)]/45 px-4 py-3 text-[var(--accent)] text-sm uppercase tracking-[0.2em] transition hover:border-[var(--accent)]/50">
-                  <span>Advanced — HOTM & Quick Forge</span>
+                  <span>Custom HOTM & Quick Forge</span>
                   <span className="text-[11px] text-[var(--text-faint)] tracking-[0.24em] transition group-open:rotate-180">
                     ▾
                   </span>
@@ -704,12 +784,12 @@ export function HeroQueryForm() {
               <span className="mb-3 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">
                 Options
               </span>
-              <div className="grid gap-3 lg:grid-cols-3">
+              <div className="grid gap-3 lg:grid-cols-4">
                 <label className="flex min-h-[46px] cursor-pointer items-center justify-between gap-3 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
                   <span className="min-w-0">
                     <span className="block">Include AH</span>
                     <span className="mt-0.5 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
-                      Recalc with auction prices
+                      Show auction-backed crafts
                     </span>
                   </span>
                   <input
@@ -719,8 +799,25 @@ export function HeroQueryForm() {
                     onChange={(event) => {
                       const value = event.target.checked;
                       setAllowAh(value);
-                      rerunAnalysis(selectedProfileId, { allowAh: value });
                     }}
+                    type="checkbox"
+                  />
+                </label>
+                <label className="flex min-h-[46px] cursor-pointer items-center justify-between gap-3 border border-[var(--border)] bg-[var(--panel)]/90 px-4 py-3 text-[var(--text-main)] text-sm">
+                  <span className="min-w-0">
+                    <span className="block">Simple crafts only</span>
+                    <span className="mt-0.5 block text-[11px] text-[var(--text-faint)] uppercase tracking-[0.16em]">
+                      At most {SIMPLE_CRAFT_MAX_PREVIOUS_STEPS} previous forge
+                      step
+                    </span>
+                  </span>
+                  <input
+                    checked={showSimpleCraftsOnly}
+                    className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                    disabled={isAnalysisLoading}
+                    onChange={(event) =>
+                      setShowSimpleCraftsOnly(event.target.checked)
+                    }
                     type="checkbox"
                   />
                 </label>

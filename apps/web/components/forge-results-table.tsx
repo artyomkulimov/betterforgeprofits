@@ -216,6 +216,8 @@ export function ForgeResultsTable({
               targetAmount,
               slotCount,
             });
+            const showForgeChainTime =
+              metrics.totalRecursiveDurationMs !== metrics.totalDurationMs;
 
             return (
               <tbody key={row.recipeId}>
@@ -240,10 +242,12 @@ export function ForgeResultsTable({
                   <td className="px-4 py-5 text-center tabular-nums">
                     <div className="space-y-1">
                       <p>{formatDuration(metrics.totalDurationMs)}</p>
-                      <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
-                        Forge Chain:{" "}
-                        {formatDuration(metrics.totalRecursiveDurationMs)}
-                      </p>
+                      {showForgeChainTime ? (
+                        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                          Forge Chain:{" "}
+                          {formatDuration(metrics.totalRecursiveDurationMs)}
+                        </p>
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-4 py-5 text-center tabular-nums">
@@ -280,6 +284,8 @@ export function ForgeResultsTable({
             targetAmount,
             slotCount,
           });
+          const showForgeChainTime =
+            metrics.totalRecursiveDurationMs !== metrics.totalDurationMs;
 
           return (
             <article
@@ -314,10 +320,12 @@ export function ForgeResultsTable({
                   <p className="mt-1">
                     {formatDuration(metrics.totalDurationMs)}
                   </p>
-                  <p className="mt-1 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
-                    Forge Chain:{" "}
-                    {formatDuration(metrics.totalRecursiveDurationMs)}
-                  </p>
+                  {showForgeChainTime ? (
+                    <p className="mt-1 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
+                      Forge Chain:{" "}
+                      {formatDuration(metrics.totalRecursiveDurationMs)}
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.22em]">

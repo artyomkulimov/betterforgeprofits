@@ -1,4 +1,9 @@
-import type { ExpandedMaterial, ForgeAnalysisRow, SortMode } from "./types";
+import type {
+  CraftTreeNode,
+  ExpandedMaterial,
+  ForgeAnalysisRow,
+  SortMode,
+} from "./types";
 
 export interface ForgeBatchSettings {
   slotCount: number;
@@ -19,6 +24,7 @@ export interface ForgeBatchMetrics {
 
 export const SUSPICIOUS_PROFIT_MULTIPLIER_THRESHOLD = 4;
 export const LOW_FORGE_TIME_THRESHOLD_MS = 30 * 60_000;
+export const SIMPLE_CRAFT_MAX_PREVIOUS_STEPS = 1;
 
 function clampInteger(
   value: number,
@@ -59,8 +65,8 @@ export function getForgeBatchMetrics(
       ? totalOutputValue - totalMaterialCost
       : null;
   const totalProfitPerHour =
-    totalProfit !== null && totalDurationMs > 0
-      ? totalProfit / (totalDurationMs / 3_600_000)
+    totalProfit !== null && totalRecursiveDurationMs > 0
+      ? totalProfit / (totalRecursiveDurationMs / 3_600_000)
       : null;
   const scaledMaterials = row.rawMaterials.map((material) => ({
     ...material,
@@ -140,4 +146,28 @@ export function isLowForgeTimeRow(
 ): boolean {
   const metrics = getForgeBatchMetrics(row, settings);
   return metrics.totalRecursiveDurationMs < LOW_FORGE_TIME_THRESHOLD_MS;
+}
+
+function getCraftTreeForgeDepth(node: CraftTreeNode): number {
+  const childDepth = Math.max(
+    0,
+    ...node.children.map((child) => getCraftTreeForgeDepth(child))
+  );
+
+  if (!node.isCraftable) {
+    return childDepth;
+  }
+
+  return 1 + childDepth;
+}
+
+export function getPreviousForgeStepDepth(row: ForgeAnalysisRow): number {
+  return Math.max(
+    0,
+    ...row.craftTree.map((node) => getCraftTreeForgeDepth(node))
+  );
+}
+
+export function isSimpleForgeRow(row: ForgeAnalysisRow): boolean {
+  return getPreviousForgeStepDepth(row) <= SIMPLE_CRAFT_MAX_PREVIOUS_STEPS;
 }
