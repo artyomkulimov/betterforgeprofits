@@ -33,6 +33,20 @@ const MOBILE_LOADING_METRICS = [
   "mobile-metric-6",
 ] as const;
 
+function DesktopTableColGroup() {
+  return (
+    <colgroup>
+      <col className="w-[40%] min-w-0" />
+      <col className="w-[7%]" />
+      <col className="w-[13%]" />
+      <col className="w-[10%]" />
+      <col className="w-[10%]" />
+      <col className="w-[10%]" />
+      <col className="w-[10%]" />
+    </colgroup>
+  );
+}
+
 function formatCoins(value: number | null): string {
   if (value === null) {
     return "N/A";
@@ -122,16 +136,17 @@ export function ForgeResultsTable({
     return (
       <div className="space-y-4">
         <div className="hidden overflow-hidden border border-[var(--border)] lg:block">
-          <table className="min-w-full border-collapse">
+          <table className="w-full min-w-0 table-fixed border-collapse">
+            <DesktopTableColGroup />
             <thead className="bg-[var(--panel)]/85 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
               <tr>
                 <th className="px-4 py-4 text-left">Item</th>
-                <th className="px-4 py-4 text-center">HOTM</th>
-                <th className="px-4 py-4 text-center">Total Time</th>
-                <th className="px-4 py-4 text-center">Total Mats</th>
-                <th className="px-4 py-4 text-center">Total Revenue</th>
-                <th className="px-4 py-4 text-center">Total Profit</th>
-                <th className="px-4 py-4 text-center">Profit / Hr</th>
+                <th className="px-4 py-4 text-right">HOTM</th>
+                <th className="px-4 py-4 text-right">Total Time</th>
+                <th className="px-4 py-4 text-right">Total Mats</th>
+                <th className="px-4 py-4 text-right">Total Revenue</th>
+                <th className="px-4 py-4 text-right">Total Profit</th>
+                <th className="px-4 py-4 text-right">Profit / Hr</th>
               </tr>
             </thead>
             <tbody>
@@ -140,21 +155,22 @@ export function ForgeResultsTable({
                   className="border-[var(--border)] border-t text-sm"
                   key={rowKey}
                 >
-                  <td className="px-4 py-5">
-                    <div className="flex items-center gap-3">
+                  <td className="min-w-0 px-4 py-5">
+                    <div className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
                       <span className="h-11 w-11 shrink-0 animate-pulse rounded-sm border border-[var(--border)] bg-[var(--panel-strong)]/90" />
-                      <div className="space-y-2">
-                        <span className="block h-6 w-44 animate-pulse rounded-sm bg-[var(--panel-strong)]/90" />
+                      <div className="min-w-0 space-y-2">
+                        <span className="block h-6 max-w-full animate-pulse rounded-sm bg-[var(--panel-strong)]/90" />
                         <span className="block h-3 w-24 animate-pulse rounded-sm bg-[var(--panel-strong)]/70" />
                       </div>
+                      <span className="h-7 w-14 shrink-0 animate-pulse rounded-sm bg-[var(--panel-strong)]/90" />
                     </div>
                   </td>
                   {DESKTOP_LOADING_CELLS.map((cellKey) => (
                     <td
-                      className="px-4 py-5 text-center"
+                      className="px-4 py-5 text-right"
                       key={`${rowKey}-${cellKey}`}
                     >
-                      <span className="mx-auto block h-5 w-20 animate-pulse rounded-sm bg-[var(--panel-strong)]/90 tabular-nums" />
+                      <span className="inline-block h-5 w-20 animate-pulse rounded-sm bg-[var(--panel-strong)]/90 tabular-nums" />
                     </td>
                   ))}
                 </tr>
@@ -199,16 +215,17 @@ export function ForgeResultsTable({
   return (
     <div className="space-y-4">
       <div className="hidden overflow-hidden border border-[var(--border)] lg:block">
-        <table className="min-w-full border-collapse">
+        <table className="w-full min-w-0 table-fixed border-collapse">
+          <DesktopTableColGroup />
           <thead className="bg-[var(--panel)]/85 text-[11px] text-[var(--text-faint)] uppercase tracking-[0.24em]">
             <tr>
               <th className="px-4 py-4 text-left">Item</th>
-              <th className="px-4 py-4 text-center">HOTM</th>
-              <th className="px-4 py-4 text-center">Total Time</th>
-              <th className="px-4 py-4 text-center">Total Mats</th>
-              <th className="px-4 py-4 text-center">Total Revenue</th>
-              <th className="px-4 py-4 text-center">Total Profit</th>
-              <th className="px-4 py-4 text-center">Profit / Hr</th>
+              <th className="px-4 py-4 text-right">HOTM</th>
+              <th className="px-4 py-4 text-right">Total Time</th>
+              <th className="px-4 py-4 text-right">Total Mats</th>
+              <th className="px-4 py-4 text-right">Total Revenue</th>
+              <th className="px-4 py-4 text-right">Total Profit</th>
+              <th className="px-4 py-4 text-right">Profit / Hr</th>
             </tr>
           </thead>
           {rows.map((row) => {
@@ -222,44 +239,51 @@ export function ForgeResultsTable({
             return (
               <tbody key={row.recipeId}>
                 <tr className="border-[var(--border)] border-t align-middle text-[var(--text-soft)] text-sm">
-                  <td className="px-4 py-5">
-                    <div className="flex items-center gap-4">
+                  <td className="min-w-0 px-4 py-5">
+                    <div className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
                       <ForgeItemThumbnail row={row} />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-[family-name:var(--font-atlas-serif)] text-[var(--text-main)] text-xl">
+                      <div className="min-w-0">
+                        <p className="break-words font-[family-name:var(--font-atlas-serif)] text-[var(--text-main)] text-xl">
                           {row.name}
                         </p>
-                        <p className="mt-1 text-[var(--text-faint)] text-sm uppercase tracking-[0.18em]">
+                        <p className="mt-1 break-words text-[var(--text-faint)] text-sm uppercase tracking-[0.18em]">
                           {row.category}
                         </p>
                       </div>
-                      <CraftPricingPopover panelAlign="end" row={row} />
+                      <div className="shrink-0">
+                        <CraftPricingPopover panelAlign="end" row={row} />
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-5 text-center tabular-nums">
+                  <td className="px-4 py-5 text-right tabular-nums">
                     {row.hotmRequired ?? "N/A"}
                   </td>
-                  <td className="px-4 py-5 text-center tabular-nums">
+                  <td className="px-4 py-5 text-right align-middle tabular-nums">
                     <div className="space-y-1">
                       <p>{formatDuration(metrics.totalDurationMs)}</p>
-                      {showForgeChainTime ? (
-                        <p className="text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]">
-                          Forge Chain:{" "}
-                          {formatDuration(metrics.totalRecursiveDurationMs)}
-                        </p>
-                      ) : null}
+                      <p
+                        className={
+                          showForgeChainTime
+                            ? "text-[11px] text-[var(--text-faint)] uppercase tracking-[0.18em]"
+                            : "invisible text-[11px] uppercase tracking-[0.18em]"
+                        }
+                      >
+                        {showForgeChainTime
+                          ? `Forge Chain: ${formatDuration(metrics.totalRecursiveDurationMs)}`
+                          : "\u00a0"}
+                      </p>
                     </div>
                   </td>
-                  <td className="px-4 py-5 text-center tabular-nums">
+                  <td className="px-4 py-5 text-right tabular-nums">
                     {formatCoins(metrics.totalMaterialCost)}
                   </td>
-                  <td className="px-4 py-5 text-center tabular-nums">
+                  <td className="px-4 py-5 text-right tabular-nums">
                     {formatCoins(metrics.totalOutputValue)}
                   </td>
-                  <td className="px-4 py-5 text-center tabular-nums">
+                  <td className="px-4 py-5 text-right tabular-nums">
                     {formatCoins(metrics.totalProfit)}
                   </td>
-                  <td className="px-4 py-5 text-center tabular-nums">
+                  <td className="px-4 py-5 text-right tabular-nums">
                     {formatCoins(metrics.totalProfitPerHour)}
                   </td>
                 </tr>
