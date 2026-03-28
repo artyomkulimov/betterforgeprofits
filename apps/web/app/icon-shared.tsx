@@ -20,8 +20,11 @@ export async function renderForgeIcon(size: number) {
   return (
     <div
       style={{
+        alignItems: "center",
         background: "transparent",
+        display: "flex",
         height: "100%",
+        justifyContent: "center",
         position: "relative",
         width: "100%",
       }}
