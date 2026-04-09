@@ -15,13 +15,16 @@ function getApiKey(): string {
 
 async function hypixelFetch<T>(
   path: string,
-  options?: RequestInit & { cacheMode?: "no-store" | "revalidate" }
+  options?: RequestInit & {
+    auth?: "required";
+    cacheMode?: "no-store" | "revalidate";
+  }
 ): Promise<T> {
-  const { cacheMode = "revalidate", ...init } = options ?? {};
+  const { auth, cacheMode = "revalidate", ...init } = options ?? {};
   const response = await fetch(`${HYPIXEL_BASE_URL}${path}`, {
     ...init,
     headers: {
-      "API-Key": getApiKey(),
+      ...(auth === "required" ? { "API-Key": getApiKey() } : {}),
       ...(init?.headers ?? {}),
     },
     ...(cacheMode === "revalidate"
@@ -57,6 +60,7 @@ export function getSkyBlockProfiles(uuid: string) {
     success: boolean;
     profiles: Record<string, unknown>[] | null;
   }>(`/v2/skyblock/profiles?uuid=${encodeURIComponent(uuid)}`, {
+    auth: "required",
     cacheMode: "no-store",
   });
 }

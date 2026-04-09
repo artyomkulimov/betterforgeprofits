@@ -18,12 +18,14 @@ bun install
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-Required env vars:
+Required web env vars:
 
 - `HYPIXEL_API_KEY`
 - `DATABASE_URL`
 
 The web app reads local env from `apps/web/.env.local`.
+`HYPIXEL_API_KEY` is required for player profile requests. Public SkyBlock
+price/resource sync endpoints do not require a Hypixel key.
 
 ## Commands
 

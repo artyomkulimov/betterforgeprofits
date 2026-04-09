@@ -1,18 +1,7 @@
 const HYPIXEL_BASE_URL = "https://api.hypixel.net";
 
-function getApiKey(): string {
-  const key = process.env.HYPIXEL_API_KEY;
-  if (!key) {
-    throw new Error("Missing HYPIXEL_API_KEY environment variable.");
-  }
-  return key;
-}
-
 async function hypixelFetch<T>(path: string): Promise<T> {
   const response = await fetch(`${HYPIXEL_BASE_URL}${path}`, {
-    headers: {
-      "API-Key": getApiKey(),
-    },
     cache: "no-store",
   });
 
